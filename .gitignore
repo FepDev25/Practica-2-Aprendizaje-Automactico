@@ -1,0 +1,57 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# Environments
+.env
+.venv
+.venv310/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific - Large files tracked with Git LFS
+*.keras
+*.h5
+*.pkl
+*.joblib
+*.npy
+*.npz
+
+# Data files - tracked but large
+data/raw/*.csv
+data/processed/*.csv
+data/processed/*.npy
+
+# Logs
+logs/
+*.log
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
