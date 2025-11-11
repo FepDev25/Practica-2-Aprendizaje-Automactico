@@ -1,0 +1,10 @@
+artifact_location: file:///C:/Users/samil/Desktop/APRENDIZAJE%20AUTOMATICO/PRIMER%20INTERCICLO/Practica-2-Aprendizaje-Automactico/mejora_dataset_prediccion_Sami/marimo_version/mlruns/361972234483606526/models/m-b2f64aab6e9747f4a362d3c3887de184/artifacts
+creation_timestamp: 1762815293531
+experiment_id: '361972234483606526'
+last_updated_timestamp: 1762815332187
+model_id: m-b2f64aab6e9747f4a362d3c3887de184
+model_type: null
+name: model
+source_run_id: 48373e1885944935a3806892f6b89a14
+status: 2
+status_message: null

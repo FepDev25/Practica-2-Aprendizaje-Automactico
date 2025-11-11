@@ -1,0 +1,11 @@
+digest: 8a8d8556
+name: dataset
+profile: '{"features_shape": [600, 4, 30], "features_size": 72000, "features_nbytes":
+  288000, "targets_shape": [600], "targets_size": 600, "targets_nbytes": 2400}'
+schema: '{"mlflow_tensorspec": {"features": "[{\"type\": \"tensor\", \"tensor-spec\":
+  {\"dtype\": \"float32\", \"shape\": [-1, 4, 30]}}]", "targets": "[{\"type\": \"tensor\",
+  \"tensor-spec\": {\"dtype\": \"float32\", \"shape\": [-1]}}]"}}'
+source: '{"tags": {"mlflow.user": "samil", "mlflow.source.name": "C:\\Users\\samil\\Desktop\\APRENDIZAJE
+  AUTOMATICO\\PRIMER INTERCICLO\\Practica-2-Aprendizaje-Automactico\\mejora_dataset_prediccion_Sami\\marimo_version\\practica2_mejora.py",
+  "mlflow.source.type": "LOCAL", "mlflow.source.git.commit": "2dcae4693961014ff23b049a47661b7559e2957e"}}'
+source_type: code

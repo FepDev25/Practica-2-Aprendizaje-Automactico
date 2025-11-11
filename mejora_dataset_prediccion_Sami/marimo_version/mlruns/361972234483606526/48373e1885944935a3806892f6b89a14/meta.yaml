@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/Users/samil/Desktop/APRENDIZAJE%20AUTOMATICO/PRIMER%20INTERCICLO/Practica-2-Aprendizaje-Automactico/mejora_dataset_prediccion_Sami/marimo_version/mlruns/361972234483606526/48373e1885944935a3806892f6b89a14/artifacts
+end_time: 1762815332202
+entry_point_name: ''
+experiment_id: '361972234483606526'
+lifecycle_stage: active
+run_id: 48373e1885944935a3806892f6b89a14
+run_name: youthful-colt-429
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1762815293464
+status: 3
+tags: []
+user_id: samil
