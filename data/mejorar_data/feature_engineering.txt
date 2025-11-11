@@ -1,0 +1,23 @@
+- Temporales
+semana_del_anio
+dia_del_mes
+dia_de_la_semana
+es_fin_de_semana
+trimestre
+estacion
+
+- Históricas y estadísticas
+variacion_stock_diaria
+media_movil_7d
+media_movil_30d
+media_movil_exponencial
+rotacion_promedio_mensual
+tendencia_stock
+dias_desde_ultimo_pedido
+ratio_reservado_disponible
+
+- Variables sintéticas (lags y anomalías)
+lag_1
+lag_7
+lag_30
+anomalía_stock
