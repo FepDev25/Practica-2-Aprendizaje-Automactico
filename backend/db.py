@@ -11,12 +11,12 @@ url = URL.create(
     port=5432
 )
 # url = URL.create(
-#     drivername= "postgresql",
-#     username= "admin",
+#     drivername="postgresql",
+#     username="admin",
 #     password="admin1234",
 #     host="localhost",
-#     database= "db",
-#     port = 4040
+#     port=4040,
+#     database="db"
 # )
 
 engine = create_engine(url=url, echo=True)

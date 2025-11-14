@@ -1,15 +1,29 @@
 from fastapi import FastAPI
-from model.registro import Registros
-from db import session
-import cv2
+from model.modeloKeras import ModeloKeras
+from pydantic import BaseModel
 
 app = FastAPI()
 
-@app.post("/")
-async def insert_Data(txt1:str,txt2:str):
-    print(cv2.__version__)
-    registro = Registros(text1=txt1,text2=txt2)
-    session.add(registro)
-    session.commit()
+modelo = ModeloKeras()
+
+class InputData(BaseModel):
+    features: list[float]
+
+@app.get("/")
+async def home():
     
-    return{"resp": registro.id}
+    return {"msg": "Hola mundo."}
+
+@app.get("/modelo/info")
+async def info_modelo():
+    resumen = modelo.obtener_resumen()
+    return {"resumen": resumen}
+
+
+@app.post("/predict")
+def predict(data: InputData):
+    try:
+        prediction = modelo.predecir(data.features)
+        return {"prediction": prediction}
+    except Exception as e:
+        return {"error": str(e)}
