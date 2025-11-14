@@ -116,7 +116,6 @@ def _(mo, pd):
 
     # Esta es la forma correcta de mostrar el DataFrame en la celda.
     mo.ui.dataframe(df_diccionario_original)
-
     return
 
 
@@ -251,7 +250,7 @@ def _(mo):
 def _(mo):
     mo.md(r"""
     **Explicación:**
-    - Creamoslag_1, lag_7, lag_30 usando quantity_available. Que son la MEMORIA del modelo
+    - Creamos lag_1, lag_7, lag_30 usando quantity_available. Que son la MEMORIA del modelo
       1. lag_1: Le da al modelo memoria a corto plazo.
       2. lag_7: Le da memoria semanal (comparar este lunes con el lunes pasado).
       3. lag_30: Le da memoria mensual.

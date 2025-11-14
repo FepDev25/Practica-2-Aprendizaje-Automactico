@@ -18,26 +18,6 @@
       "console": []
     },
     {
-      "id": "MJUe",
-      "code_hash": "bc07401ca9be7fa3cdcea5548516f9f2",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/plain": ""
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "Librer\u00edas importadas correctamente.\n",
-          "mimetype": "text/plain"
-        }
-      ]
-    },
-    {
       "id": "vblA",
       "code_hash": "68239075e6b8279ca00b3fb5708cdf30",
       "outputs": [
@@ -45,19 +25,6 @@
           "type": "data",
           "data": {
             "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"diccionario-de-datos-del-dataset-original\">Diccionario de Datos del Dataset Original</h2>\n<span class=\"paragraph\">Basado en la estructura del dataset, este diccionario de datos describe cada columna:</span></span>"
-          }
-        }
-      ],
-      "console": []
-    },
-    {
-      "id": "bkHC",
-      "code_hash": "b2e07edfdb9556221d0474c1e0a1f772",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<marimo-ui-element object-id='bkHC-0' random-id='ccedf3f8-2f23-dff8-0998-94b6f3929526'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;Variable&quot;,&quot;string&quot;,&quot;object&quot;],[&quot;Tipo de Dato&quot;,&quot;string&quot;,&quot;object&quot;],[&quot;Descripci\u00f3n&quot;,&quot;string&quot;,&quot;object&quot;]]' data-dataframe-name='&quot;df_diccionario_original&quot;' data-total='37' data-page-size='5' data-show-download='true'></marimo-dataframe></marimo-ui-element>"
           }
         }
       ],
@@ -75,26 +42,6 @@
         }
       ],
       "console": []
-    },
-    {
-      "id": "PKri",
-      "code_hash": "9e5719e40b34a4cb1e677ce9fe572871",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/plain": ""
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "Dataset ordenado por 'product_sku' y 'created_at'.\nVariable Objetivo para lags/medias: 'quantity_available'\n<class 'pandas.core.frame.DataFrame'>\nIndex: 7500 entries, 500 to 7499\nData columns (total 37 columns):\n #   Column                  Non-Null Count  Dtype         \n---  ------                  --------------  -----         \n 0   id                      7500 non-null   int64         \n 1   created_at              7500 non-null   datetime64[ns]\n 2   product_id              7500 non-null   int64         \n 3   product_name            7500 non-null   object        \n 4   product_sku             7500 non-null   object        \n 5   supplier_id             7500 non-null   int64         \n 6   supplier_name           7500 non-null   object        \n 7   prioridad_proveedor     7500 non-null   int64         \n 8   quantity_on_hand        7500 non-null   int64         \n 9   quantity_reserved       7500 non-null   int64         \n 10  quantity_available      7500 non-null   int64         \n 11  minimum_stock_level     7500 non-null   int64         \n 12  reorder_point           7500 non-null   int64         \n 13  optimal_stock_level     7500 non-null   int64         \n 14  reorder_quantity        7500 non-null   int64         \n 15  average_daily_usage     7500 non-null   float64       \n 16  last_order_date         7500 non-null   datetime64[ns]\n 17  last_stock_count_date   7500 non-null   datetime64[ns]\n 18  unit_cost               7500 non-null   float64       \n 19  total_value             7500 non-null   float64       \n 20  expiration_date         7500 non-null   datetime64[ns]\n 21  batch_number            7500 non-null   object        \n 22  warehouse_location      7500 non-null   object        \n 23  shelf_location          7500 non-null   object        \n 24  region_almacen          7500 non-null   object        \n 25  stock_status            7500 non-null   object        \n 26  is_active               7500 non-null   int64         \n 27  last_updated_at         7500 non-null   datetime64[ns]\n 28  created_by_id           7500 non-null   int64         \n 29  record_sequence_number  7500 non-null   int64         \n 30  categoria_producto      7500 non-null   object        \n 31  subcategoria_producto   7500 non-null   object        \n 32  anio                    7500 non-null   int64         \n 33  mes                     7500 non-null   int64         \n 34  vacaciones_o_no         7500 non-null   bool          \n 35  es_feriado              7500 non-null   bool          \n 36  temporada_alta          7500 non-null   bool          \ndtypes: bool(3), datetime64[ns](5), float64(3), int64(16), object(10)\nmemory usage: 2.0+ MB\n",
-          "mimetype": "text/plain"
-        }
-      ]
     },
     {
       "id": "Xref",
@@ -136,32 +83,6 @@
       "console": []
     },
     {
-      "id": "RGSE",
-      "code_hash": "6d4dfb7e4f9f4f73f6c88b97c91794ef",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/plain": ""
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "Variables temporales nuevas creadas (semana, dia, trimestre, estacion).\nVariables booleanas existentes (vacaciones, feriado, temporada_alta) convertidas a 0/1.\n\n--- df.info() despu\u00e9s de procesar variables temporales ---\n<class 'pandas.core.frame.DataFrame'>\nIndex: 7500 entries, 500 to 7499\nData columns (total 43 columns):\n #   Column                  Non-Null Count  Dtype         \n---  ------                  --------------  -----         \n 0   id                      7500 non-null   int64         \n 1   created_at              7500 non-null   datetime64[ns]\n 2   product_id              7500 non-null   int64         \n 3   product_name            7500 non-null   object        \n 4   product_sku             7500 non-null   object        \n 5   supplier_id             7500 non-null   int64         \n 6   supplier_name           7500 non-null   object        \n 7   prioridad_proveedor     7500 non-null   int64         \n 8   quantity_on_hand        7500 non-null   int64         \n 9   quantity_reserved       7500 non-null   int64         \n 10  quantity_available      7500 non-null   int64         \n 11  minimum_stock_level     7500 non-null   int64         \n 12  reorder_point           7500 non-null   int64         \n 13  optimal_stock_level     7500 non-null   int64         \n 14  reorder_quantity        7500 non-null   int64         \n 15  average_daily_usage     7500 non-null   float64       \n 16  last_order_date         7500 non-null   datetime64[ns]\n 17  last_stock_count_date   7500 non-null   datetime64[ns]\n 18  unit_cost               7500 non-null   float64       \n 19  total_value             7500 non-null   float64       \n 20  expiration_date         7500 non-null   datetime64[ns]\n 21  batch_number            7500 non-null   object        \n 22  warehouse_location      7500 non-null   object        \n 23  shelf_location          7500 non-null   object        \n 24  region_almacen          7500 non-null   object        \n 25  stock_status            7500 non-null   object        \n 26  is_active               7500 non-null   int64         \n 27  last_updated_at         7500 non-null   datetime64[ns]\n 28  created_by_id           7500 non-null   int64         \n 29  record_sequence_number  7500 non-null   int64         \n 30  categoria_producto      7500 non-null   object        \n 31  subcategoria_producto   7500 non-null   object        \n 32  anio                    7500 non-null   int64         \n 33  mes                     7500 non-null   int64         \n 34  vacaciones_o_no         7500 non-null   int64         \n 35  es_feriado              7500 non-null   int64         \n 36  temporada_alta          7500 non-null   int64         \n 37  semana_del_anio         7500 non-null   UInt32        \n 38  dia_del_mes             7500 non-null   int32         \n 39  dia_de_la_semana        7500 non-null   int32         \n 40  es_fin_de_semana        7500 non-null   int64         \n 41  trimestre               7500 non-null   int32         \n 42  estacion                7500 non-null   object        \ndtypes: UInt32(1), datetime64[ns](5), float64(3), int32(3), int64(20), object(11)\nmemory usage: 2.4+ MB\n\n--- df.head().T despu\u00e9s de procesar variables temporales ---\n",
-          "mimetype": "text/plain"
-        },
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "                                500                  501                  502  \\\nproduct_sku                 BCA-115              BCA-115              BCA-115   \ncreated_at      2024-01-01 00:00:00  2024-01-02 00:00:00  2024-01-03 00:00:00   \nmes                               1                    1                    1   \nestacion                   Invierno             Invierno             Invierno   \nes_feriado                        1                    0                    0   \ntemporada_alta                    1                    1                    1   \n\n                                503                  504  \nproduct_sku                 BCA-115              BCA-115  \ncreated_at      2024-01-04 00:00:00  2024-01-05 00:00:00  \nmes                               1                    1  \nestacion                   Invierno             Invierno  \nes_feriado                        0                    0  \ntemporada_alta                    1                    1  \n",
-          "mimetype": "text/plain"
-        }
-      ]
-    },
-    {
       "id": "Kclp",
       "code_hash": "227401e4963516567ef2ba25a091e9d4",
       "outputs": [
@@ -176,36 +97,16 @@
     },
     {
       "id": "emfo",
-      "code_hash": "3183342383a6af6e7444cf78bc27d3e1",
+      "code_hash": "4cee715ccd669fc310acc995d9ebe038",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><strong>Explicaci\u00f3n:</strong></span>\n<ul>\n<li>\n<span class=\"paragraph\">Creamoslag_1, lag_7, lag_30 usando quantity_available. Que son la MEMORIA del modelo</span>\n<ol>\n<li>lag_1: Le da al modelo memoria a corto plazo.</li>\n<li>lag_7: Le da memoria semanal (comparar este lunes con el lunes pasado).</li>\n<li>lag_30: Le da memoria mensual.</li>\n<li>El groupby(ID_PRODUCTO) garantiza que el lag_1 de la \"Barra Cereal Choco\" sea el de la \"Barra Cereal Choco\" de ayer, y no el de \"Agua Mineral\".</li>\n</ol>\n</li>\n</ul></span>"
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><strong>Explicaci\u00f3n:</strong></span>\n<ul>\n<li>\n<span class=\"paragraph\">Creamos lag_1, lag_7, lag_30 usando quantity_available. Que son la MEMORIA del modelo</span>\n<ol>\n<li>lag_1: Le da al modelo memoria a corto plazo.</li>\n<li>lag_7: Le da memoria semanal (comparar este lunes con el lunes pasado).</li>\n<li>lag_30: Le da memoria mensual.</li>\n<li>El groupby(ID_PRODUCTO) garantiza que el lag_1 de la \"Barra Cereal Choco\" sea el de la \"Barra Cereal Choco\" de ayer, y no el de \"Agua Mineral\".</li>\n</ol>\n</li>\n</ul></span>"
           }
         }
       ],
       "console": []
-    },
-    {
-      "id": "Hstk",
-      "code_hash": "716eda76b88a3009f0b3fb3725121db9",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<marimo-ui-element object-id='Hstk-0' random-id='c15c9c45-cdf0-2a24-924f-11a2394d54fc'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;&#92;&quot;:500,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-01T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:351,&#92;&quot;lag_1&#92;&quot;:null,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:501,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-02T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:342,&#92;&quot;lag_1&#92;&quot;:351.0,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:502,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-03T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:333,&#92;&quot;lag_1&#92;&quot;:342.0,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:503,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-04T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:324,&#92;&quot;lag_1&#92;&quot;:333.0,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:504,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-05T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:319,&#92;&quot;lag_1&#92;&quot;:324.0,&#92;&quot;lag_7&#92;&quot;:null}]&quot;' data-total-rows='5' data-total-columns='5' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;product_sku&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;created_at&quot;,[&quot;datetime&quot;,&quot;datetime64[ns]&quot;]],[&quot;quantity_available&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;lag_1&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;lag_7&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='false' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[[&quot;&quot;,[&quot;integer&quot;,&quot;int64&quot;]]]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "Variables Lag (1, 7, 30) creadas para 'quantity_available'.\n",
-          "mimetype": "text/plain"
-        }
-      ]
     },
     {
       "id": "nWHF",
@@ -234,26 +135,6 @@
       "console": []
     },
     {
-      "id": "ZHCJ",
-      "code_hash": "afd6772e9118a404c9cdcfbeaf08d363",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/plain": ""
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "Medias m\u00f3viles (7d, 30d, Exp) y Std (30d) creadas.\n",
-          "mimetype": "text/plain"
-        }
-      ]
-    },
-    {
       "id": "ROlb",
       "code_hash": "ee9f24261378a64e05e916ad80d0e3b5",
       "outputs": [
@@ -278,32 +159,6 @@
         }
       ],
       "console": []
-    },
-    {
-      "id": "TqIu",
-      "code_hash": "87fbb99d8c8930a7d1cff51152ab5fcc",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/plain": ""
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "Variables sint\u00e9ticas (variaci\u00f3n, tendencia, ratios, anomal\u00eda) creadas.\nVariable sint\u00e9tica 'rotacion_estimada_30d' CREADA.\n\n--- df.info() despu\u00e9s de crear variables sint\u00e9ticas ---\n<class 'pandas.core.frame.DataFrame'>\nIndex: 7500 entries, 500 to 7499\nData columns (total 56 columns):\n #   Column                      Non-Null Count  Dtype         \n---  ------                      --------------  -----         \n 0   id                          7500 non-null   int64         \n 1   created_at                  7500 non-null   datetime64[ns]\n 2   product_id                  7500 non-null   int64         \n 3   product_name                7500 non-null   object        \n 4   product_sku                 7500 non-null   object        \n 5   supplier_id                 7500 non-null   int64         \n 6   supplier_name               7500 non-null   object        \n 7   prioridad_proveedor         7500 non-null   int64         \n 8   quantity_on_hand            7500 non-null   int64         \n 9   quantity_reserved           7500 non-null   int64         \n 10  quantity_available          7500 non-null   int64         \n 11  minimum_stock_level         7500 non-null   int64         \n 12  reorder_point               7500 non-null   int64         \n 13  optimal_stock_level         7500 non-null   int64         \n 14  reorder_quantity            7500 non-null   int64         \n 15  average_daily_usage         7500 non-null   float64       \n 16  last_order_date             7500 non-null   datetime64[ns]\n 17  last_stock_count_date       7500 non-null   datetime64[ns]\n 18  unit_cost                   7500 non-null   float64       \n 19  total_value                 7500 non-null   float64       \n 20  expiration_date             7500 non-null   datetime64[ns]\n 21  batch_number                7500 non-null   object        \n 22  warehouse_location          7500 non-null   object        \n 23  shelf_location              7500 non-null   object        \n 24  region_almacen              7500 non-null   object        \n 25  stock_status                7500 non-null   object        \n 26  is_active                   7500 non-null   int64         \n 27  last_updated_at             7500 non-null   datetime64[ns]\n 28  created_by_id               7500 non-null   int64         \n 29  record_sequence_number      7500 non-null   int64         \n 30  categoria_producto          7500 non-null   object        \n 31  subcategoria_producto       7500 non-null   object        \n 32  anio                        7500 non-null   int64         \n 33  mes                         7500 non-null   int64         \n 34  vacaciones_o_no             7500 non-null   int64         \n 35  es_feriado                  7500 non-null   int64         \n 36  temporada_alta              7500 non-null   int64         \n 37  semana_del_anio             7500 non-null   UInt32        \n 38  dia_del_mes                 7500 non-null   int32         \n 39  dia_de_la_semana            7500 non-null   int32         \n 40  es_fin_de_semana            7500 non-null   int64         \n 41  trimestre                   7500 non-null   int32         \n 42  estacion                    7500 non-null   object        \n 43  lag_1                       7485 non-null   float64       \n 44  lag_7                       7395 non-null   float64       \n 45  lag_30                      7050 non-null   float64       \n 46  media_movil_7d              7500 non-null   float64       \n 47  media_movil_30d             7500 non-null   float64       \n 48  media_movil_exponencial     7500 non-null   float64       \n 49  std_movil_30d               7500 non-null   float64       \n 50  variacion_stock_diaria      7485 non-null   float64       \n 51  tendencia_stock             7500 non-null   float64       \n 52  dias_desde_ultimo_pedido    7500 non-null   int64         \n 53  ratio_reservado_disponible  7500 non-null   float64       \n 54  anomalia_stock              7500 non-null   float64       \n 55  rotacion_estimada_30d       7500 non-null   float64       \ndtypes: UInt32(1), datetime64[ns](5), float64(15), int32(3), int64(21), object(11)\nmemory usage: 3.2+ MB\n\n--- df.head().T despu\u00e9s de crear variables sint\u00e9ticas ---\n",
-          "mimetype": "text/plain"
-        },
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "                                                 500  \\\nid                                                 1   \ncreated_at                       2024-01-01 00:00:00   \nproduct_id                                       115   \nproduct_name                Barra Chocolate Avellana   \nproduct_sku                                  BCA-115   \n...                                              ...   \ntendencia_stock                                0.000   \ndias_desde_ultimo_pedido                           3   \nratio_reservado_disponible                     0.051   \nanomalia_stock                                 0.000   \nrotacion_estimada_30d                          0.940   \n\n                                                 501  \\\nid                                                 2   \ncreated_at                       2024-01-02 00:00:00   \nproduct_id                                       115   \nproduct_name                Barra Chocolate Avellana   \nproduct_sku                                  BCA-115   \n...                                              ...   \ntendencia_stock                                0.000   \ndias_desde_ultimo_pedido                           2   \nratio_reservado_disponible                     0.044   \nanomalia_stock                                -0.707   \nrotacion_estimada_30d                          0.866   \n\n                                                 502  \\\nid                                                 3   \ncreated_at                       2024-01-03 00:00:00   \nproduct_id                                       115   \nproduct_name                Barra Chocolate Avellana   \nproduct_sku                                  BCA-115   \n...                                              ...   \ntendencia_stock                                0.000   \ndias_desde_ultimo_pedido                           3   \nratio_reservado_disponible                     0.060   \nanomalia_stock                                -1.000   \nrotacion_estimada_30d                          0.877   \n\n                                                 503                       504  \nid                                                 4                         5  \ncreated_at                       2024-01-04 00:00:00       2024-01-05 00:00:00  \nproduct_id                                       115                       115  \nproduct_name                Barra Chocolate Avellana  Barra Chocolate Avellana  \nproduct_sku                                  BCA-115                   BCA-115  \n...                                              ...                       ...  \ntendencia_stock                                0.000                     0.000  \ndias_desde_ultimo_pedido                           4                         1  \nratio_reservado_disponible                     0.062                     0.053  \nanomalia_stock                                -1.162                    -1.136  \nrotacion_estimada_30d                          0.889                     0.899  \n\n[56 rows x 5 columns]\n",
-          "mimetype": "text/plain"
-        }
-      ]
     },
     {
       "id": "Vxnm",
@@ -332,53 +187,7 @@
       "console": []
     },
     {
-      "id": "ulZA",
-      "code_hash": "d545533ea78d6d3cad8e71f4e750bfae",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/plain": ""
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "--- Nulos ANTES de limpiar (Top 10) ---\nlag_30                    450\nlag_7                     105\nlag_1                      15\nvariacion_stock_diaria     15\ndtype: int64\n\n--- Nulos DESPU\u00c9S de limpiar ---\nNulos restantes: 0\n\nFilas originales: 7,500\nFilas procesadas: 7,050\nFilas eliminadas (por NaNs): 450\n",
-          "mimetype": "text/plain"
-        },
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "\n\u00a1\u00c9xito! Dataset procesado guardado en: C:/Users/samil/Desktop/APRENDIZAJE AUTOMATICO/PRIMER INTERCICLO/Practica-2-Aprendizaje-Automactico/data/dataset_processed_advanced.csv\n",
-          "mimetype": "text/plain"
-        }
-      ]
-    },
-    {
-      "id": "ecfG",
-      "code_hash": "d2e4ee59bfe0a2fb1fffd65930a0cdd9",
-      "outputs": [
-        {
-          "type": "data",
-          "data": {
-            "text/html": "<marimo-ui-element object-id='ecfG-0' random-id='aeccdce9-253d-fdc8-098f-ca5c76252d85'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;&#92;&quot;:530,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;prioridad_proveedor&#92;&quot;:3,&#92;&quot;quantity_on_hand&#92;&quot;:974,&#92;&quot;quantity_reserved&#92;&quot;:19,&#92;&quot;quantity_available&#92;&quot;:955,&#92;&quot;minimum_stock_level&#92;&quot;:70,&#92;&quot;reorder_point&#92;&quot;:150,&#92;&quot;optimal_stock_level&#92;&quot;:400,&#92;&quot;reorder_quantity&#92;&quot;:0,&#92;&quot;average_daily_usage&#92;&quot;:10.0,&#92;&quot;unit_cost&#92;&quot;:0.9,&#92;&quot;total_value&#92;&quot;:876.6,&#92;&quot;region_almacen&#92;&quot;:&#92;&quot;Sur&#92;&quot;,&#92;&quot;is_active&#92;&quot;:1,&#92;&quot;anio&#92;&quot;:2024,&#92;&quot;mes&#92;&quot;:1,&#92;&quot;vacaciones_o_no&#92;&quot;:0,&#92;&quot;es_feriado&#92;&quot;:0,&#92;&quot;temporada_alta&#92;&quot;:1,&#92;&quot;semana_del_anio&#92;&quot;:5,&#92;&quot;dia_del_mes&#92;&quot;:31,&#92;&quot;dia_de_la_semana&#92;&quot;:2,&#92;&quot;es_fin_de_semana&#92;&quot;:0,&#92;&quot;trimestre&#92;&quot;:1,&#92;&quot;lag_1&#92;&quot;:972.0,&#92;&quot;lag_7&#92;&quot;:782.0,&#92;&quot;lag_30&#92;&quot;:351.0,&#92;&quot;media_movil_7d&#92;&quot;:949.7142857143,&#92;&quot;media_movil_30d&#92;&quot;:693.8333333333,&#92;&quot;media_movil_exponencial&#92;&quot;:934.9440275429,&#92;&quot;std_movil_30d&#92;&quot;:211.2099924709,&#92;&quot;variacion_stock_diaria&#92;&quot;:-17.0,&#92;&quot;tendencia_stock&#92;&quot;:255.880952381,&#92;&quot;dias_desde_ultimo_pedido&#92;&quot;:3,&#92;&quot;ratio_reservado_disponible&#92;&quot;:0.019895288,&#92;&quot;anomalia_stock&#92;&quot;:1.2365260924,&#92;&quot;rotacion_estimada_30d&#92;&quot;:0.4323804948,&#92;&quot;estacion_Oto&#92;&#92;u00f1o&#92;&quot;:false,&#92;&quot;estacion_Primavera&#92;&quot;:false,&#92;&quot;estacion_Verano&#92;&quot;:false},{&#92;&quot;&#92;&quot;:531,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;prioridad_proveedor&#92;&quot;:3,&#92;&quot;quantity_on_hand&#92;&quot;:1042,&#92;&quot;quantity_reserved&#92;&quot;:12,&#92;&quot;quantity_available&#92;&quot;:1030,&#92;&quot;minimum_stock_level&#92;&quot;:70,&#92;&quot;reorder_point&#92;&quot;:150,&#92;&quot;optimal_stock_level&#92;&quot;:400,&#92;&quot;reorder_quantity&#92;&quot;:0,&#92;&quot;average_daily_usage&#92;&quot;:10.0,&#92;&quot;unit_cost&#92;&quot;:0.9,&#92;&quot;total_value&#92;&quot;:937.8,&#92;&quot;region_almacen&#92;&quot;:&#92;&quot;Sur&#92;&quot;,&#92;&quot;is_active&#92;&quot;:1,&#92;&quot;anio&#92;&quot;:2024,&#92;&quot;mes&#92;&quot;:2,&#92;&quot;vacaciones_o_no&#92;&quot;:0,&#92;&quot;es_feriado&#92;&quot;:0,&#92;&quot;temporada_alta&#92;&quot;:0,&#92;&quot;semana_del_anio&#92;&quot;:5,&#92;&quot;dia_del_mes&#92;&quot;:1,&#92;&quot;dia_de_la_semana&#92;&quot;:3,&#92;&quot;es_fin_de_semana&#92;&quot;:0,&#92;&quot;trimestre&#92;&quot;:1,&#92;&quot;lag_1&#92;&quot;:955.0,&#92;&quot;lag_7&#92;&quot;:856.0,&#92;&quot;lag_30&#92;&quot;:342.0,&#92;&quot;media_movil_7d&#92;&quot;:974.5714285714,&#92;&quot;media_movil_30d&#92;&quot;:716.7666666667,&#92;&quot;media_movil_exponencial&#92;&quot;:958.7080206572,&#92;&quot;std_movil_30d&#92;&quot;:209.0308809612,&#92;&quot;variacion_stock_diaria&#92;&quot;:75.0,&#92;&quot;tendencia_stock&#92;&quot;:257.8047619048,&#92;&quot;dias_desde_ultimo_pedido&#92;&quot;:8,&#92;&quot;ratio_reservado_disponible&#92;&quot;:0.0116504854,&#92;&quot;anomalia_stock&#92;&quot;:1.4985026705,&#92;&quot;rotacion_estimada_30d&#92;&quot;:0.4185462494,&#92;&quot;estacion_Oto&#92;&#92;u00f1o&#92;&quot;:false,&#92;&quot;estacion_Primavera&#92;&quot;:false,&#92;&quot;estacion_Verano&#92;&quot;:false},{&#92;&quot;&#92;&quot;:532,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;prioridad_proveedor&#92;&quot;:3,&#92;&quot;quantity_on_hand&#92;&quot;:1033,&#92;&quot;quantity_reserved&#92;&quot;:24,&#92;&quot;quantity_available&#92;&quot;:1009,&#92;&quot;minimum_stock_level&#92;&quot;:70,&#92;&quot;reorder_point&#92;&quot;:150,&#92;&quot;optimal_stock_level&#92;&quot;:400,&#92;&quot;reorder_quantity&#92;&quot;:0,&#92;&quot;average_daily_usage&#92;&quot;:10.0,&#92;&quot;unit_cost&#92;&quot;:0.9,&#92;&quot;total_value&#92;&quot;:929.7,&#92;&quot;region_almacen&#92;&quot;:&#92;&quot;Sur&#92;&quot;,&#92;&quot;is_active&#92;&quot;:1,&#92;&quot;anio&#92;&quot;:2024,&#92;&quot;mes&#92;&quot;:2,&#92;&quot;vacaciones_o_no&#92;&quot;:0,&#92;&quot;es_feriado&#92;&quot;:0,&#92;&quot;temporada_alta&#92;&quot;:0,&#92;&quot;semana_del_anio&#92;&quot;:5,&#92;&quot;dia_del_mes&#92;&quot;:2,&#92;&quot;dia_de_la_semana&#92;&quot;:4,&#92;&quot;es_fin_de_semana&#92;&quot;:0,&#92;&quot;trimestre&#92;&quot;:1,&#92;&quot;lag_1&#92;&quot;:1030.0,&#92;&quot;lag_7&#92;&quot;:926.0,&#92;&quot;lag_30&#92;&quot;:333.0,&#92;&quot;media_movil_7d&#92;&quot;:986.4285714286,&#92;&quot;media_movil_30d&#92;&quot;:739.3,&#92;&quot;media_movil_exponencial&#92;&quot;:971.2810154929,&#92;&quot;std_movil_30d&#92;&quot;:202.5709156371,&#92;&quot;variacion_stock_diaria&#92;&quot;:-21.0,&#92;&quot;tendencia_stock&#92;&quot;:247.1285714286,&#92;&quot;dias_desde_ultimo_pedido&#92;&quot;:9,&#92;&quot;ratio_reservado_disponible&#92;&quot;:0.0237859267,&#92;&quot;anomalia_stock&#92;&quot;:1.3313855997,&#92;&quot;rotacion_estimada_30d&#92;&quot;:0.4057892601,&#92;&quot;estacion_Oto&#92;&#92;u00f1o&#92;&quot;:false,&#92;&quot;estacion_Primavera&#92;&quot;:false,&#92;&quot;estacion_Verano&#92;&quot;:false},{&#92;&quot;&#92;&quot;:533,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;prioridad_proveedor&#92;&quot;:3,&#92;&quot;quantity_on_hand&#92;&quot;:1023,&#92;&quot;quantity_reserved&#92;&quot;:24,&#92;&quot;quantity_available&#92;&quot;:999,&#92;&quot;minimum_stock_level&#92;&quot;:70,&#92;&quot;reorder_point&#92;&quot;:150,&#92;&quot;optimal_stock_level&#92;&quot;:400,&#92;&quot;reorder_quantity&#92;&quot;:0,&#92;&quot;average_daily_usage&#92;&quot;:11.0,&#92;&quot;unit_cost&#92;&quot;:0.9,&#92;&quot;total_value&#92;&quot;:920.7,&#92;&quot;region_almacen&#92;&quot;:&#92;&quot;Sur&#92;&quot;,&#92;&quot;is_active&#92;&quot;:1,&#92;&quot;anio&#92;&quot;:2024,&#92;&quot;mes&#92;&quot;:2,&#92;&quot;vacaciones_o_no&#92;&quot;:0,&#92;&quot;es_feriado&#92;&quot;:0,&#92;&quot;temporada_alta&#92;&quot;:0,&#92;&quot;semana_del_anio&#92;&quot;:5,&#92;&quot;dia_del_mes&#92;&quot;:3,&#92;&quot;dia_de_la_semana&#92;&quot;:5,&#92;&quot;es_fin_de_semana&#92;&quot;:1,&#92;&quot;trimestre&#92;&quot;:1,&#92;&quot;lag_1&#92;&quot;:1009.0,&#92;&quot;lag_7&#92;&quot;:988.0,&#92;&quot;lag_30&#92;&quot;:324.0,&#92;&quot;media_movil_7d&#92;&quot;:988.0,&#92;&quot;media_movil_30d&#92;&quot;:761.8,&#92;&quot;media_movil_exponencial&#92;&quot;:978.2107616196,&#92;&quot;std_movil_30d&#92;&quot;:192.0665114683,&#92;&quot;variacion_stock_diaria&#92;&quot;:-10.0,&#92;&quot;tendencia_stock&#92;&quot;:226.2,&#92;&quot;dias_desde_ultimo_pedido&#92;&quot;:5,&#92;&quot;ratio_reservado_disponible&#92;&quot;:0.024024024,&#92;&quot;anomalia_stock&#92;&quot;:1.2349888494,&#92;&quot;rotacion_estimada_30d&#92;&quot;:0.4331845629,&#92;&quot;estacion_Oto&#92;&#92;u00f1o&#92;&quot;:false,&#92;&quot;estacion_Primavera&#92;&quot;:false,&#92;&quot;estacion_Verano&#92;&quot;:false},{&#92;&quot;&#92;&quot;:534,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;prioridad_proveedor&#92;&quot;:3,&#92;&quot;quantity_on_hand&#92;&quot;:1012,&#92;&quot;quantity_reserved&#92;&quot;:14,&#92;&quot;quantity_available&#92;&quot;:998,&#92;&quot;minimum_stock_level&#92;&quot;:70,&#92;&quot;reorder_point&#92;&quot;:150,&#92;&quot;optimal_stock_level&#92;&quot;:400,&#92;&quot;reorder_quantity&#92;&quot;:0,&#92;&quot;average_daily_usage&#92;&quot;:11.0,&#92;&quot;unit_cost&#92;&quot;:0.9,&#92;&quot;total_value&#92;&quot;:910.8,&#92;&quot;region_almacen&#92;&quot;:&#92;&quot;Sur&#92;&quot;,&#92;&quot;is_active&#92;&quot;:1,&#92;&quot;anio&#92;&quot;:2024,&#92;&quot;mes&#92;&quot;:2,&#92;&quot;vacaciones_o_no&#92;&quot;:0,&#92;&quot;es_feriado&#92;&quot;:0,&#92;&quot;temporada_alta&#92;&quot;:0,&#92;&quot;semana_del_anio&#92;&quot;:5,&#92;&quot;dia_del_mes&#92;&quot;:4,&#92;&quot;dia_de_la_semana&#92;&quot;:6,&#92;&quot;es_fin_de_semana&#92;&quot;:1,&#92;&quot;trimestre&#92;&quot;:1,&#92;&quot;lag_1&#92;&quot;:999.0,&#92;&quot;lag_7&#92;&quot;:977.0,&#92;&quot;lag_30&#92;&quot;:319.0,&#92;&quot;media_movil_7d&#92;&quot;:991.0,&#92;&quot;media_movil_30d&#92;&quot;:784.4333333333,&#92;&quot;media_movil_exponencial&#92;&quot;:983.1580712147,&#92;&quot;std_movil_30d&#92;&quot;:177.545270251,&#92;&quot;variacion_stock_diaria&#92;&quot;:-1.0,&#92;&quot;tendencia_stock&#92;&quot;:206.5666666667,&#92;&quot;dias_desde_ultimo_pedido&#92;&quot;:1,&#92;&quot;ratio_reservado_disponible&#92;&quot;:0.0140280561,&#92;&quot;anomalia_stock&#92;&quot;:1.2028856999,&#92;&quot;rotacion_estimada_30d&#92;&quot;:0.4206858454,&#92;&quot;estacion_Oto&#92;&#92;u00f1o&#92;&quot;:false,&#92;&quot;estacion_Primavera&#92;&quot;:false,&#92;&quot;estacion_Verano&#92;&quot;:false}]&quot;' data-total-rows='5' data-total-columns='40' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;product_sku&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;prioridad_proveedor&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;quantity_on_hand&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;quantity_reserved&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;quantity_available&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;minimum_stock_level&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;reorder_point&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;optimal_stock_level&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;reorder_quantity&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;average_daily_usage&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;unit_cost&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;total_value&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;region_almacen&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;is_active&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;anio&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;mes&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;vacaciones_o_no&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;es_feriado&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;temporada_alta&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;semana_del_anio&quot;,[&quot;integer&quot;,&quot;UInt32&quot;]],[&quot;dia_del_mes&quot;,[&quot;integer&quot;,&quot;int32&quot;]],[&quot;dia_de_la_semana&quot;,[&quot;integer&quot;,&quot;int32&quot;]],[&quot;es_fin_de_semana&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;trimestre&quot;,[&quot;integer&quot;,&quot;int32&quot;]],[&quot;lag_1&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;lag_7&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;lag_30&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;media_movil_7d&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;media_movil_30d&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;media_movil_exponencial&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;std_movil_30d&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;variacion_stock_diaria&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;tendencia_stock&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;dias_desde_ultimo_pedido&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;ratio_reservado_disponible&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;anomalia_stock&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;rotacion_estimada_30d&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;estacion_Oto\u00f1o&quot;,[&quot;boolean&quot;,&quot;bool&quot;]],[&quot;estacion_Primavera&quot;,[&quot;boolean&quot;,&quot;bool&quot;]],[&quot;estacion_Verano&quot;,[&quot;boolean&quot;,&quot;bool&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='false' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[[&quot;&quot;,[&quot;integer&quot;,&quot;int64&quot;]]]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
-          }
-        }
-      ],
-      "console": [
-        {
-          "type": "stream",
-          "name": "stdout",
-          "text": "<class 'pandas.core.frame.DataFrame'>\nIndex: 7050 entries, 530 to 7499\nData columns (total 40 columns):\n #   Column                      Non-Null Count  Dtype  \n---  ------                      --------------  -----  \n 0   product_sku                 7050 non-null   object \n 1   prioridad_proveedor         7050 non-null   int64  \n 2   quantity_on_hand            7050 non-null   int64  \n 3   quantity_reserved           7050 non-null   int64  \n 4   quantity_available          7050 non-null   int64  \n 5   minimum_stock_level         7050 non-null   int64  \n 6   reorder_point               7050 non-null   int64  \n 7   optimal_stock_level         7050 non-null   int64  \n 8   reorder_quantity            7050 non-null   int64  \n 9   average_daily_usage         7050 non-null   float64\n 10  unit_cost                   7050 non-null   float64\n 11  total_value                 7050 non-null   float64\n 12  region_almacen              7050 non-null   object \n 13  is_active                   7050 non-null   int64  \n 14  anio                        7050 non-null   int64  \n 15  mes                         7050 non-null   int64  \n 16  vacaciones_o_no             7050 non-null   int64  \n 17  es_feriado                  7050 non-null   int64  \n 18  temporada_alta              7050 non-null   int64  \n 19  semana_del_anio             7050 non-null   UInt32 \n 20  dia_del_mes                 7050 non-null   int32  \n 21  dia_de_la_semana            7050 non-null   int32  \n 22  es_fin_de_semana            7050 non-null   int64  \n 23  trimestre                   7050 non-null   int32  \n 24  lag_1                       7050 non-null   float64\n 25  lag_7                       7050 non-null   float64\n 26  lag_30                      7050 non-null   float64\n 27  media_movil_7d              7050 non-null   float64\n 28  media_movil_30d             7050 non-null   float64\n 29  media_movil_exponencial     7050 non-null   float64\n 30  std_movil_30d               7050 non-null   float64\n 31  variacion_stock_diaria      7050 non-null   float64\n 32  tendencia_stock             7050 non-null   float64\n 33  dias_desde_ultimo_pedido    7050 non-null   int64  \n 34  ratio_reservado_disponible  7050 non-null   float64\n 35  anomalia_stock              7050 non-null   float64\n 36  rotacion_estimada_30d       7050 non-null   float64\n 37  estacion_Oto\u00f1o              7050 non-null   bool   \n 38  estacion_Primavera          7050 non-null   bool   \n 39  estacion_Verano             7050 non-null   bool   \ndtypes: UInt32(1), bool(3), float64(15), int32(3), int64(16), object(2)\nmemory usage: 2.0+ MB\nNone\n",
-          "mimetype": "text/plain"
-        }
-      ]
-    },
-    {
-      "id": "UWwr",
+      "id": "Pvdt",
       "code_hash": "ed5aa57d349138750a3a28133e9fafeb",
       "outputs": [
         {
@@ -391,7 +200,61 @@
       "console": []
     },
     {
-      "id": "Pvdt",
+      "id": "MJUe",
+      "code_hash": "bc07401ca9be7fa3cdcea5548516f9f2",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "367abb9dfda22c1b1eb30741e43c17d4",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "9e5719e40b34a4cb1e677ce9fe572871",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "6d4dfb7e4f9f4f73f6c88b97c91794ef",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "716eda76b88a3009f0b3fb3725121db9",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "afd6772e9118a404c9cdcfbeaf08d363",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "87fbb99d8c8930a7d1cff51152ab5fcc",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "d545533ea78d6d3cad8e71f4e750bfae",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "d2e4ee59bfe0a2fb1fffd65930a0cdd9",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZBYS",
       "code_hash": "1d0db38904205bec4d6f6f6a1f6cec3e",
       "outputs": [
         {

@@ -638,6 +638,108 @@ def _(df, plt):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## Análisis de Estabilidad y Secuencialidad del Dataset
+
+        Visualizaciones para verificar que el dataset es adecuado para modelado de series temporales:
+        - estabilidad (rolling mean/std),
+        - dependencia temporal (autocorrelación),
+        - realismo en los cambios (primera diferencia).
+    """)
+    return
+
+
+@app.cell
+def _(df, mo, pd, plt, sns):
+    try:
+        # Importamos SOLO la función específica localmente
+        from pandas.plotting import autocorrelation_plot
+    except ImportError:
+        autocorrelation_plot = None
+
+    mo.md(r"""
+    ## Análisis de Estabilidad y Secuencialidad
+    Verificamos si el dataset sirve para series temporales:
+    """)
+
+    # 1. Validaciones de seguridad
+    # Usamos 'df' que viene de tu celda de carga
+    mo.stop(
+        df is None, 
+        mo.md(" **Detenido:** El dataframe no se ha cargado correctamente.")
+    )
+
+    missing_cols = [c for c in ['created_at', 'quantity_available'] if c not in df.columns]
+    mo.stop(
+        len(missing_cols) > 0,
+        mo.md(f" **Error:** Faltan columnas requeridas: {missing_cols}")
+    )
+
+    # 2. Preparación de datos (Usamos el 'pd' global de tu celda 3)
+    df_time = df.copy()
+    df_time['created_at'] = pd.to_datetime(df_time['created_at'], errors='coerce')
+    df_time = df_time.dropna(subset=['created_at', 'quantity_available']).sort_values('created_at')
+
+    mo.stop(
+        df_time.empty,
+        mo.md(" **Aviso:** No quedan datos válidos tras limpiar fechas.")
+    )
+
+    # 3. Resampleo Diario
+    daily = df_time.set_index('created_at').resample('D')['quantity_available'].mean().dropna()
+
+    mo.stop(
+        daily.empty,
+        mo.md(" **Aviso:** La serie diaria está vacía.")
+    )
+
+    # 4. Gráfico de Estabilidad
+    rolling_window = 30
+    roll_mean = daily.rolling(window=rolling_window, min_periods=7).mean()
+    roll_std = daily.rolling(window=rolling_window, min_periods=7).std()
+
+    # Usamos 'plt' global de tu celda 3
+    fig_rolling, ax = plt.subplots(figsize=(14, 6))
+    ax.plot(daily.index, daily.values, label='Media Diaria', color='C0', alpha=0.6)
+    ax.plot(roll_mean.index, roll_mean.values, label=f'Rolling Mean ({rolling_window}d)', color='C1')
+    ax.fill_between(roll_mean.index,
+                    (roll_mean - roll_std).values,
+                    (roll_mean + roll_std).values,
+                    color='C1', alpha=0.2, label='Rolling ±1 std')
+    ax.set_title('Estabilidad Temporal')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+
+    # 5. Autocorrelación
+    fig_ac = None
+    if autocorrelation_plot is not None:
+        try:
+            fig_ac = plt.figure(figsize=(10, 4))
+            autocorrelation_plot(daily)
+            plt.title('Autocorrelación')
+            plt.tight_layout()
+        except Exception:
+            fig_ac = None
+
+    # 6. Primera Diferencia
+    diffs = daily.diff().dropna()
+    fig_diff = plt.figure(figsize=(12, 4))
+    # Usamos 'sns' global de tu celda 3
+    sns.histplot(diffs, bins=50, kde=True, color='tab:purple')
+    plt.title('Distribución de Cambios Diarios')
+
+    # 7. Salida visual
+    mo.vstack([
+        fig_rolling,
+        fig_ac if fig_ac else mo.md(" *Gráfico de autocorrelación no disponible*"),
+        fig_diff
+    ])
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -699,13 +801,7 @@ def _(categoricas, df, numericas):
     if 'es_feriado' in df.columns:
         holidays = (df['es_feriado'] == True).sum()
         print(f'   - Registros en días feriados: {holidays:,} ({holidays / len(df) * 100:.1f}%)')
-    print('\n7. RECOMENDACIONES')
-    print('   - Implementar sistema de alertas para productos por debajo del punto de reorden')
-    print('   - Analizar patrones de demanda por categoría y temporada')
-    print('   - Optimizar la relación con proveedores de alta prioridad')
-    print('   - Revisar políticas de stock para productos de alto valor')
-    print('   - Considerar análisis predictivo para mejorar la gestión de inventario')
-    print('Análisis completado exitosamente.')
+
     return
 
 
@@ -713,9 +809,6 @@ def _(categoricas, df, numericas):
 def _():
     import marimo as mo
     return (mo,)
-
-
-
 
 
 if __name__ == "__main__":
