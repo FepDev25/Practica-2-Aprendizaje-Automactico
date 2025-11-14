@@ -55,3 +55,6 @@ temp/
 build/
 dist/
 *.egg-info/
+
+/modelo/notebooks/mlruns/
+mlruns/
