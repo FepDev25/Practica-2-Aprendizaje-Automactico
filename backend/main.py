@@ -1,8 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from model.modeloKeras import ModeloStockKeras
+from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
 from pydantic import BaseModel
 from datetime import date
-from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario
+from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre
 import pandas as pd
 import os
 
@@ -20,20 +20,74 @@ async def info_modelo():
     resumen = modelo.obtener_resumen()
     return {"resumen": resumen}
 
-@app.get("/predict")
-def predict(fecha: str, id: str):
-    features = preparar_input_desde_dataset_procesado(
-    "BCA-115",
-     "2025-12-05"
-    )
-    
-    pred = modelo.predecir(features)
+@app.get("/predictPornombre")
+def predict(fecha: str, nombre: str):
 
-    return {
-        "sku": id,
-        "prediction": pred,
-    }
-    
+    try:
+        # 1. Obtener SKU desde el CSV
+        sku = buscar_producto_por_nombre(nombre)
+        print(sku)
+        if sku is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontró ningún producto con nombre '{nombre}'"
+            )
+
+        # 2. Preparar input del modelo
+        features = preparar_input_desde_dataset_procesado(
+            sku=sku,
+            fecha_override=fecha
+        )
+
+        # 3. Realizar predicción
+        pred = modelo.predecir(features)
+
+        return {
+            "nombre_ingresado": nombre,
+            "sku_detectado": sku,
+            "prediction": float(pred),  # asegurar que sea JSON serializable
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al predecir: {str(e)}"
+        )
+
+@app.get("/predictPorID")
+def predict(fecha: str, id: int):
+
+    try:
+        # 1. Obtener SKU desde el CSV
+        sku = buscar_producto_por_id(id)
+        
+        if sku is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontró ningún producto con id '{id}'"
+            )
+
+        # 2. Preparar input del modelo
+        features = preparar_input_desde_dataset_procesado(
+            sku=sku,
+            fecha_override=fecha
+        )
+
+        # 3. Realizar predicción
+        pred = modelo.predecir(features)
+
+        return {
+            "id_ingresado": id,
+            "sku_detectado": sku,
+            "prediction": float(pred),  # asegurar que sea JSON serializable
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al predecir: {str(e)}"
+        )
+
 @app.get("/predictAll")
 def predict(fecha: str):
     productos = all_registers_priductos()
@@ -120,33 +174,19 @@ async def upload_csv(file: UploadFile = File(...)):
         "path": DATASET_PATH
     }
     
-    
 @app.get("/reentrenarModelo")
-def contar_diferencias():
+def reentrenar_modelo():
+    try:
+        resultado = reentrenar_modelo_con_diferencias()
 
-    # Leer directamente desde archivos locales
-    df1 = pd.read_csv("dataset_processed_advanced.csv")
-    df2 = pd.read_csv("dataset_processed_advanced2.csv")
+        return {
+            "status": "ok",
+            "mensaje": "Reentrenamiento completado",
+            "resultado": resultado
+        }
 
-    # Alinear columnas
-    for col in df1.columns:
-        if col not in df2.columns:
-            df2[col] = None
-
-    for col in df2.columns:
-        if col not in df1.columns:
-            df1[col] = None
-
-    df1 = df1[df2.columns]
-
-    df1 = df1.reset_index(drop=True)
-    df2 = df2.reset_index(drop=True)
-
-    # Detectar filas distintas
-    filas_diferentes = df1.ne(df2).any(axis=1)
-
-    numero_diferencias = filas_diferentes.sum()
-
-    return {
-        "filas_diferentes": int(numero_diferencias)
-    }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error durante el reentrenamiento: {str(e)}"
+        )

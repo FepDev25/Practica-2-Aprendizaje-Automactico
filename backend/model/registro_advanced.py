@@ -9,6 +9,8 @@ from scipy.stats import zscore
 scaler_X = load("scaler_X.joblib")
 scaler_y = load("scaler_y.joblib")
 
+# Cargar CSV una vez
+DF_PRODUCTOS = pd.read_csv("dataset.csv")
 
 
 def all_registers_priductos():
@@ -19,6 +21,29 @@ def all_registers_priductos():
     
     return sku_unicos
 
+
+def buscar_producto_por_id(product_id: int) -> str | dict:
+    """
+    Retorna solo el product_sku del producto con el product_id dado.
+    """
+    fila = DF_PRODUCTOS[DF_PRODUCTOS["product_id"] == product_id]
+    if fila.empty:
+        return {"mensaje": f"No se encontró el product_id {product_id}"}
+    # Retorna solo un product_sku
+    return fila["product_sku"].iloc[0]
+
+def buscar_producto_por_nombre(nombre: str) -> str | dict:
+    """
+    Retorna solo el product_sku de la primera coincidencia
+    por product_name (parcial e insensible a mayúsculas).
+    """
+    coincidencias = DF_PRODUCTOS[DF_PRODUCTOS["product_name"].str.contains(nombre, case=False, na=False)]
+    print(coincidencias)
+    if coincidencias.empty:
+        return {"mensaje": f"No se encontró el nombre '{nombre}'"}
+    # Retorna solo el primer product_sku encontrado
+    return coincidencias["product_sku"].iloc[0]
+
 def preparar_input_desde_dataset_procesado(sku, fecha_override=None):
     """
     Prepara el input para el modelo GRU.
@@ -27,9 +52,6 @@ def preparar_input_desde_dataset_procesado(sku, fecha_override=None):
     - Escala usando scaler_X.
     - Devuelve X con forma (1, 7, N_FEATURES).
     """
-    
-    
-    
     scaler_X = load("scaler_X.joblib")
     n_steps = 7
 
@@ -99,10 +121,6 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     pd.DataFrame
         DataFrame procesado con todas las features engineered
     
-    Ejemplo:
-    --------
-    >>> df_procesado = procesar_dataset_inventario()
-    >>> print(df_procesado.shape)
     """
     
     # ========== 1. CARGA Y PREPARACIÓN BASE ==========
@@ -154,7 +172,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     df['es_feriado'] = df['es_feriado'].astype(int)
     df['temporada_alta'] = df['temporada_alta'].astype(int)
     
-    print("✓ Variables temporales creadas")
+    print("Variables temporales creadas")
     
     
     # ========== 3. FEATURE ENGINEERING: LAGS ==========
@@ -164,7 +182,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     df['lag_7'] = df.groupby(ID_PRODUCTO)[VAR_OBJETIVO].shift(7)
     df['lag_30'] = df.groupby(ID_PRODUCTO)[VAR_OBJETIVO].shift(30)
     
-    print("✓ Variables lag (1, 7, 30) creadas")
+    print("Variables lag (1, 7, 30) creadas")
     
     
     # ========== 4. FEATURE ENGINEERING: HISTÓRICAS Y ESTADÍSTICAS ==========
@@ -184,7 +202,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     )
     df['std_movil_30d'] = df['std_movil_30d'].fillna(0)
     
-    print("✓ Medias móviles y desviación estándar creadas")
+    print("Medias móviles y desviación estándar creadas")
     
     
     # ========== 5. FEATURE ENGINEERING: VARIABLES SINTÉTICAS ==========
@@ -221,7 +239,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
         0
     )
     
-    print("✓ Variables sintéticas creadas")
+    print("Variables sintéticas creadas")
     
     
     # ========== 6. LIMPIEZA FINAL Y SELECCIÓN DE COLUMNAS ==========
@@ -257,9 +275,9 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     if guardar:
         try:
             df_final.to_csv(ruta_salida, index=False)
-            print(f"\n✓ ¡Éxito! Dataset procesado guardado en: {ruta_salida}")
+            print(f"\n ¡Éxito! Dataset procesado guardado en: {ruta_salida}")
         except Exception as e:
-            print(f"\n✗ Error al guardar: {e}")
+            print(f"\n Error al guardar: {e}")
     
     
     # ========== 8. RESUMEN FINAL ==========
