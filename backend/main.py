@@ -2,10 +2,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
 from pydantic import BaseModel
 from datetime import date
-from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre
+from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku
 import pandas as pd
 import os
-
+import numpy as np
 app = FastAPI()
 
 # Cargar modelo
@@ -78,6 +78,7 @@ def predict(fecha: str, id: int):
 
         return {
             "id_ingresado": id,
+            "nombre_producto":buscar_nombre_por_sku(sku),
             "sku_detectado": sku,
             "prediction": float(pred),  # asegurar que sea JSON serializable
         }
@@ -92,13 +93,13 @@ def predict(fecha: str, id: int):
 def predict(fecha: str):
     productos = all_registers_priductos()
     resultados = []
-
+    
     for prod in productos:
-        features = preparar_input_desde_dataset_procesado(sku=prod, fecha=fecha)
-        if features:  # validar que exista registro
+        features = preparar_input_desde_dataset_procesado(sku=prod,fecha_override=fecha)
+        if features is not None and np.any(features):  # validar que exista registro
             pred = modelo.predecir(features)
             resultados.append({
-                "sku": prod,
+                "nombre": buscar_nombre_por_sku(prod),
                 "prediction": pred
             })
     # lista de productos y sus predicciones 

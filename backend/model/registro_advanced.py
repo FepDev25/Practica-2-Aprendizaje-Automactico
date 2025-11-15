@@ -21,6 +21,14 @@ def all_registers_priductos():
     
     return sku_unicos
 
+def buscar_nombre_por_sku(product_sku: str) -> str | dict:
+    """
+    Retorna el product_name asociado a un product_sku.
+    """
+    fila = DF_PRODUCTOS[DF_PRODUCTOS["product_sku"] == product_sku]
+    if fila.empty:
+        return {"mensaje": f"No se encontró el product_sku '{product_sku}'"}
+    return fila["product_name"].iloc[0]
 
 def buscar_producto_por_id(product_id: int) -> str | dict:
     """
