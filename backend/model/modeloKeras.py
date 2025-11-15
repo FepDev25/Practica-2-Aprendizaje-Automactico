@@ -130,7 +130,13 @@ def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.
         return {"mensaje": "Sin cambios, sin reentrenamiento."}
 
     df_new = diferencias.copy()
-
+    
+    
+    try:
+        df2.to_csv("dataset_processed_advanced.csv", index=False)  
+        print(f"df2 guardado con éxito en: {"dataset_processed_advanced.csv"}")
+    except Exception as e:
+        print(f"Error al guardar df2: {e}")
     # ------------------------------------------------------------------
     # 6. Eliminar columnas no numéricas como en Fase_02
     # ------------------------------------------------------------------
