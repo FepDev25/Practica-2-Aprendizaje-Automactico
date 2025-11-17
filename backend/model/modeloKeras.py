@@ -76,7 +76,7 @@ def create_sequences(X_data, y_data, time_steps=7):
 
 def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.csv",
                                       path_nuevo="dataset_processed_advanced2.csv",
-                                      ruta_modelo="best_model.keras"):
+                                      ruta_modelo="model.keras"):
     """
     1. Carga los dos datasets.
     2. Igual las columnas entre ambos.
