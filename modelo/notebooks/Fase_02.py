@@ -155,9 +155,17 @@ def _(mo):
 
     Para series de tiempo, debemos
     dividir los datos cronológicamente:
-    * **Train (70%):** El pasado más antiguo.
-    * **Validation (20%):** El pasado reciente (para mejorar).
-    * **Test (10%):** El futuro (el examen final).
+    - **Train (80%):** El pasado más antiguo para aprendizaje
+    - **Validation (10%):** Datos recientes para ajuste de hiperparámetros
+    - **Test (10%):** El futuro (examen final, datos nunca vistos)
+
+    **¿Por qué esta división?**
+    - 80% Train: Suficientes datos para que el modelo aprenda patrones complejos
+    - 10% Validation: Permite evaluar generalización sin comprometer datos de prueba
+    - 10% Test: Conjunto limpio para evaluación final imparcial
+
+    **Importante:** En series temporales, la división debe ser cronológica (no aleatoria)
+    para respetar la secuencia temporal de los datos.
     """)
     return
 
@@ -165,28 +173,30 @@ def _(mo):
 @app.cell
 def _(X_scaled, y_scaled):
     if X_scaled is not None:
-        # Calcular los puntos de corte
+        # Calcular los puntos de corte (80/10/10)
         total_size = len(X_scaled)
-        train_size = int(total_size * 0.70)
-        val_size = int(total_size * 0.20)
-        # El resto es el test_size
+        train_size = int(total_size * 0.80)  # 80%
+        val_size = int(total_size * 0.10)    # 10%
+        # El resto es el test_size (10%)
 
-        # Dividir X
+        # Dividir X cronológicamente
         X_train_raw = X_scaled[0:train_size]
         X_val_raw = X_scaled[train_size : train_size + val_size]
         X_test_raw = X_scaled[train_size + val_size :]
 
-        # Dividir y
+        # Dividir y cronológicamente
         y_train_raw = y_scaled[0:train_size]
         y_val_raw = y_scaled[train_size : train_size + val_size]
         y_test_raw = y_scaled[train_size + val_size :]
 
-        print(f"Total de datos: {total_size}")
-        print(f"Datos de Train: {len(X_train_raw)} (70%)")
-        print(f"Datos de Validation: {len(X_val_raw)} (20%)")
-        print(f"Datos de Test: {len(X_test_raw)} (10%)")
+        print(f" División cronológica completada:")
+        print(f"   Total de datos: {total_size:,}")
+        print(f"   Datos de Train: {len(X_train_raw):,} ({len(X_train_raw)/total_size*100:.1f}%)")
+        print(f"   Datos de Validation: {len(X_val_raw):,} ({len(X_val_raw)/total_size*100:.1f}%)")
+        print(f"   Datos de Test: {len(X_test_raw):,} ({len(X_test_raw)/total_size*100:.1f}%)")
+        print(f"\n    Nota: La división respeta el orden cronológico de los datos.")
     else:
-        print("Datos no escalados, no se puede dividir.")
+        print(" Datos no escalados, no se puede dividir.")
         X_train_raw, X_val_raw, X_test_raw, y_train_raw, y_val_raw, y_test_raw = [None] * 6
     return (
         X_test_raw,
@@ -449,14 +459,16 @@ def _(history, mlflow, plt):
 def _(mo):
     mo.md(r"""
     **Análisis de las curvas de aprendizaje:**
-    - Aprendizaje Rápido: Ambas líneas (azul y naranja) tienen una caída vertical en las primeras 2-3 épocas. Esto significa que el modelo aprendió la mayoría de los patrones del stock casi instantáneamente.
+    1. Pérdida (Loss) vs. Épocas:
 
-    -No hay Overfitting: El overfitting ocurre cuando la línea de Entrenamiento (azul) sigue bajando, pero la línea de Validación (naranja) empieza a SUBIR.
+        - La línea azul (Entrenamiento) baja rápidamente y se estabiliza. La línea naranja (Validación) es aún mejor: es extremadamente baja (casi cero) y plana.
 
-    - Nuestro caso: la línea naranja no sube. Baja rápidamente y luego se "aplana" (se estabiliza). Esto significa que el modelo generalizó bien (aprendió el patrón real, no se "memorizó" las respuestas).
+    **Conclusión**: Cero Overfitting
+
+    El hecho de que la pérdida de validación (naranja) sea tan baja significa que nuestro modelo generaliza perfectamente a datos que nunca ha visto. No hay sobreajuste en absoluto. El EarlyStopping funcionó bien y detuvo el entrenamiento en el momento justo (alrededor de la época 40).
 
 
-    Conclusión: es un modelo saludable, bien entrenado y que generaliza correctamente.
+    Es un modelo saludable, bien entrenado y que generaliza correctamente.
     """)
     return
 
@@ -571,7 +583,7 @@ def _(
     try:
         if mlflow.active_run():
             mlflow.end_run()
-        
+
         with mlflow.start_run():
             mlflow.log_metrics({
                 "test_mae": float(test_mae),
@@ -593,9 +605,24 @@ def _(mo):
     mo.md(r"""
     **Análisis de los Resultados:**
 
-    1. Scatter Plot (Izquierda): Los puntos azules están muy pegados a la línea roja punteada. No hay "curvas" raras, lo que indica que el modelo no está sesgado.
+    1. R² (R-squared): 0.966
 
-    2. Histograma (Derecha): La distribución de errores (la campana azul) está centrada casi perfectamente en 0. Esto es ideal; significa que el modelo no tiene tendencia a "sobreestimar siempre" o "subestimar siempre". Es equilibrado.
+    Un R² de 0.966 significa que nuestro modelo GRU es capaz de explicar el 96.6% del comportamiento (varianza) del stock disponible. Es decir, el modelo entiende casi perfectamente por qué el stock sube o baja.
+
+    2. MAE (Error Absoluto Medio): 57.341 unidades
+
+    En promedio, cuando el modelo hace una predicción, se equivoca por 57 unidades (ya sea hacia arriba o hacia abajo).
+
+    3. RMSE (Raíz del Error Cuadrático Medio): 75.865 unidades
+
+    Esta es la métrica estándar para el error. Es más sensible a errores grandes que el MAE. Este valor es el que usamos para la "Regla del 10%".
+
+    4. Gráfico (Izquierda - Reales vs. Predicciones):
+
+    Podemos observar que es casi una línea recta perfecta. Los puntos azules (predicciones) están increíblemente agrupados alrededor de la línea roja (la predicción perfecta). Esto demuestra que el modelo es preciso en todo el rango, tanto para valores bajos de stock como para valores altos.
+
+    5. Gráfico (Derecha - Distribución de Errores):
+    Esta es la "campana de Gauss" ideal. Está perfectamente centrada en el cero, lo que nos dice que el modelo no tiene sesgo. No tiende a predecir "siempre de más" o "siempre de menos"
     """)
     return
 
@@ -632,6 +659,16 @@ def _(mo, test_rmse, y):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""
+    Análisis: en la industria, un error por debajo del 10-15% se considera muy bueno. Un error de menos del 5% es excepcional.
+
+    En otras palabras, el modelo tiene una precisión superior al 95% (100% - 4.94% = 95.06%) en relación al comportamiento promedio del stock.
+    """)
+    return
+
+
+@app.cell
 def _(mean_absolute_error, mean_squared_error, mo, np, y_pred_scaled, y_test):
     # Cálculo de errores en escala normalizada (0 a 1)
     # ------------------------------------------------
@@ -663,13 +700,7 @@ def _(mean_absolute_error, mean_squared_error, mo, np, y_pred_scaled, y_test):
 def _(mo):
     mo.md(r"""
     **Análisis de los Resultados:**
-    - R² (0.959): el modelo explica el 95.9% de la variabilidad del comportamiento del stock. Esto es altísimo. Significa que la red GRU ha entendido casi a la perfección los patrones de subida y bajada del inventario.
-
-    - Regla del 10% (5.49%): hay un error porcentual del 5.49%.
-
-    - En el mundo real, cualquier cosa por debajo del 10% es "Gestión de Inventario de Alta Precisión".
-
-    Esto significa, por ejemplo, si tenemos 1000 productos, nuestro modelo se equivoca solo por 55 unidades aprox. Es muy confiable para automatizar pedidos.
+    un error de 0.0095 en esa escala significa que el error promedio del modelo es inferior al 1% del rango total de los datos. Es otra forma de confirmar, a nivel matemático, que la precisión es altísima. El modelo apenas comete errores significativos.
     """)
     return
 
@@ -689,7 +720,7 @@ def _(mo):
     mlflow ui
     ```
 
-    4.  Abre tu navegador web y ve a la dirección que te indica
+    4.  Abre el navegador web y ve a la dirección que te indica
         (usualmente `http://127.0.0.1:5000`).
     """)
     return
