@@ -6,17 +6,16 @@ from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from scipy.stats import zscore
 
 
-scaler_X = load("scaler_X.joblib")
-scaler_y = load("scaler_y.joblib")
+scaler_X = load("model/files/scaler_X.joblib")
+scaler_y = load("model/files/scaler_y.joblib")
 
 # Cargar CSV una vez
-DF_PRODUCTOS = pd.read_csv("dataset.csv")
+DF_PRODUCTOS = pd.read_csv("model/files/dataset.csv")
 
 
 def all_registers_priductos():
     
-    df = pd.read_csv("dataset_processed_advanced.csv")
-
+    df = pd.read_csv("model/files/dataset_processed_advanced.csv")
     sku_unicos = df["product_sku"].unique()
     
     return sku_unicos

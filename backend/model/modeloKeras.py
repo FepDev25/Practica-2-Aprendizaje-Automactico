@@ -13,10 +13,10 @@ from tensorflow.keras.optimizers import Adam
 
 
 N_STEPS = 7
-scaler_y = load("scaler_y.joblib")
+scaler_y = load("model/files/scaler_y.joblib")
 
 class ModeloStockKeras:
-    def __init__(self, modelo_path="best_model.keras"):
+    def __init__(self, modelo_path="model/files/model.keras"):
         """
         modelo_path: ruta donde guardaste tu modelo Keras .
         """
@@ -158,8 +158,8 @@ def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.
     # ------------------------------------------------------------------
     # 8. Cargar scalers originales
     # ------------------------------------------------------------------
-    scaler_X = load("scaler_X.joblib")
-    scaler_y = load("scaler_y.joblib")
+    scaler_X = load("model/files/scaler_X.joblib")
+    scaler_y = load("model/files/scaler_y.joblib")
 
     print("Scalers cargados.")
 

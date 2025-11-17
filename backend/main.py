@@ -3,10 +3,19 @@ from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
 from pydantic import BaseModel
 from datetime import date
 from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku
+from llm_service import get_llm_service
 import pandas as pd
 import os
 import numpy as np
+
 app = FastAPI()
+
+# Inicializar servicio LLM
+try:
+    llm_service = get_llm_service()
+except Exception as e:
+    print(f"Advertencia: No se pudo inicializar el servicio LLM: {e}")
+    llm_service = None
 
 # Cargar modelo
 modelo = ModeloStockKeras()
@@ -41,11 +50,30 @@ def predict(fecha: str, nombre: str):
 
         # 3. Realizar predicción
         pred = modelo.predecir(features)
+        
+        # 4. Obtener nombre completo del producto
+        nombre_completo = buscar_nombre_por_sku(sku)
+        
+        # 5. Generar mensaje amigable con LLM
+        mensaje_llm = None
+        if llm_service:
+            try:
+                mensaje_llm = llm_service.generar_mensaje_prediccion(
+                    nombre_producto=nombre_completo,
+                    sku=sku,
+                    fecha=fecha,
+                    prediccion=float(pred)
+                )
+            except Exception as llm_error:
+                print(f"Error generando mensaje LLM: {llm_error}")
 
         return {
             "nombre_ingresado": nombre,
+            "nombre_producto": nombre_completo,
             "sku_detectado": sku,
-            "prediction": float(pred),  # asegurar que sea JSON serializable
+            "fecha_prediccion": fecha,
+            "prediction": float(pred),
+            "mensaje": mensaje_llm or f"Predicción para {nombre_completo}: {pred:.2f} unidades disponibles para {fecha}"
         }
 
     except Exception as e:
@@ -75,12 +103,30 @@ def predict(fecha: str, id: int):
 
         # 3. Realizar predicción
         pred = modelo.predecir(features)
+        
+        # 4. Obtener nombre del producto
+        nombre_producto = buscar_nombre_por_sku(sku)
+        
+        # 5. Generar mensaje amigable con LLM
+        mensaje_llm = None
+        if llm_service:
+            try:
+                mensaje_llm = llm_service.generar_mensaje_prediccion(
+                    nombre_producto=nombre_producto,
+                    sku=sku,
+                    fecha=fecha,
+                    prediccion=float(pred)
+                )
+            except Exception as llm_error:
+                print(f"Error generando mensaje LLM: {llm_error}")
 
         return {
             "id_ingresado": id,
-            "nombre_producto":buscar_nombre_por_sku(sku),
+            "nombre_producto": nombre_producto,
             "sku_detectado": sku,
-            "prediction": float(pred),  # asegurar que sea JSON serializable
+            "fecha_prediccion": fecha,
+            "prediction": float(pred),
+            "mensaje": mensaje_llm or f"Predicción para {nombre_producto}: {pred:.2f} unidades disponibles para {fecha}"
         }
 
     except Exception as e:
@@ -98,13 +144,34 @@ def predict(fecha: str):
         features = preparar_input_desde_dataset_procesado(sku=prod,fecha_override=fecha)
         if features is not None and np.any(features):  # validar que exista registro
             pred = modelo.predecir(features)
+            nombre = buscar_nombre_por_sku(prod)
             resultados.append({
-                "nombre": buscar_nombre_por_sku(prod),
-                "prediction": pred
+                "sku": prod,
+                "nombre": nombre,
+                "prediction": float(pred)
             })
+    
+    # Generar mensaje resumen con LLM
+    mensaje_resumen = None
+    if llm_service and resultados:
+        try:
+            # Ordenar por predicción (menor a mayor para destacar críticos)
+            resultados_ordenados = sorted(resultados, key=lambda x: x['prediction'])
+            
+            mensaje_resumen = llm_service.generar_mensaje_multiple(
+                fecha=fecha,
+                total_productos=len(resultados),
+                predicciones_destacadas=resultados_ordenados[:10]  # Top 10 más críticos
+            )
+        except Exception as llm_error:
+            print(f"Error generando mensaje resumen: {llm_error}")
+    
     # lista de productos y sus predicciones 
     return {
-        "predictions": resultados
+        "fecha_prediccion": fecha,
+        "total_productos": len(resultados),
+        "predictions": resultados,
+        "mensaje_resumen": mensaje_resumen or f"Se analizaron {len(resultados)} productos para la fecha {fecha}"
     }
 
 
