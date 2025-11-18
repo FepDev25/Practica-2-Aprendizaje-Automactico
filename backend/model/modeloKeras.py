@@ -19,9 +19,10 @@ N_STEPS = 7
 scaler_y = load(str(resolve_file("scaler_y.joblib")))
 
 class ModeloStockKeras:
-    def __init__(self, modelo_path="model/files/model.keras"):
+    def __init__(self, modelo_path="model.keras"):
         """
-        modelo_path: ruta donde guardaste tu modelo Keras .
+        modelo_path: ruta donde guardaste tu modelo Keras (nombre de archivo o ruta absoluta).
+        Por defecto busca 'model.keras' en backend/model/files/
         """
         self.modelo_path = modelo_path
         self.model = None
