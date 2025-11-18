@@ -7,6 +7,7 @@ from llm_service import get_llm_service
 import pandas as pd
 import os
 import numpy as np
+from paths import resolve_file
 
 app = FastAPI()
 
@@ -178,7 +179,8 @@ def predict(fecha: str):
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...)):
     
-    DATASET_PATH = "dataset.csv"
+    # Usar ruta absoluta del dataset en producción
+    DATASET_PATH = str(resolve_file("dataset.csv"))
     
     REQUIRED_COLUMNS = [
         "id","created_at","product_id","product_name","product_sku","supplier_id",

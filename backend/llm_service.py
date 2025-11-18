@@ -36,16 +36,36 @@ class LLMPrediccionService:
     
     def _validar_configuracion(self):
         """Valida que las variables de entorno estén configuradas."""
-        if not PROJECT_ID or not CREDENTIALS_PATH:
+        # Verificar PROJECT_ID
+        if not PROJECT_ID:
             raise ValueError(
-                "Error: Variables de entorno no configuradas. "
-                "Verifica PROJECT_ID y GOOGLE_APPLICATION_CREDENTIALS en .env"
+                "Error: PROJECT_ID no configurado. Verifica .env o la variable de entorno PROJECT_ID"
             )
-        
-        if not Path(CREDENTIALS_PATH).exists():
-            raise FileNotFoundError(
-                f"Error: No se encontró el archivo de credenciales en: {CREDENTIALS_PATH}"
-            )
+
+        # Resolver y validar CREDENTIALS_PATH
+        creds = CREDENTIALS_PATH
+        if creds:
+            creds_path = Path(creds).expanduser()
+            if not creds_path.is_absolute():
+                creds_path = (Path(__file__).parent / creds_path).resolve()
+            if creds_path.exists():
+                # Asegurar que Google client lo vea
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(creds_path)
+                return
+
+        # Fallback: buscar en carpeta `env/` dentro de backend
+        env_dir = Path(__file__).parent / "env"
+        if env_dir.exists() and env_dir.is_dir():
+            json_files = list(env_dir.glob("*.json"))
+            if json_files:
+                sel = json_files[0]
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sel)
+                print(f"Usando credenciales encontradas en: {sel}")
+                return
+
+        raise FileNotFoundError(
+            f"Error: No se encontró el archivo de credenciales. Buscado: {CREDENTIALS_PATH} y en {env_dir}"
+        )
     
     def _crear_llm(self):
         """Crea y configura el modelo LLM de Gemini."""

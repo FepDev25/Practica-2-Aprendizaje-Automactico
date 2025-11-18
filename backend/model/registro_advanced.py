@@ -4,13 +4,15 @@ import numpy as np
 from joblib import load
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from scipy.stats import zscore
+from pathlib import Path
+from paths import resolve_file, FILES_DIR
 
 
-scaler_X = load("model/files/scaler_X.joblib")
-scaler_y = load("model/files/scaler_y.joblib")
+scaler_X = load(str(resolve_file("scaler_X.joblib")))
+scaler_y = load(str(resolve_file("scaler_y.joblib")))
 
-# Cargar CSV una vez
-DF_PRODUCTOS = pd.read_csv("model/files/dataset.csv")
+# Cargar CSV una vez (ruta resuelta)
+DF_PRODUCTOS = pd.read_csv(str(resolve_file("dataset.csv")))
 
 
 def all_registers_priductos():
@@ -59,11 +61,11 @@ def preparar_input_desde_dataset_procesado(sku, fecha_override=None):
     - Escala usando scaler_X.
     - Devuelve X con forma (1, 7, N_FEATURES).
     """
-    scaler_X = load("scaler_X.joblib")
+    scaler_X = load(str(resolve_file("scaler_X.joblib")))
     n_steps = 7
 
     # 1. Cargar dataset procesado
-    df = pd.read_csv("dataset_processed_advanced.csv")
+    df = pd.read_csv(str(resolve_file("dataset_processed_advanced.csv")))
 
     # 2. Filtrar SKU
     df_sku = df[df["product_sku"] == sku].copy()
@@ -132,7 +134,8 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     
     # ========== 1. CARGA Y PREPARACIÓN BASE ==========
     print("Cargando dataset...")
-    df = pd.read_csv(ruta_csv)
+    ruta_csv_path = resolve_file(ruta_csv)
+    df = pd.read_csv(ruta_csv_path)
     
     # Conversión de fechas
     date_cols = ['created_at', 'last_order_date', 'expiration_date', 
@@ -281,8 +284,9 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     # ========== 7. GUARDADO (OPCIONAL) ==========
     if guardar:
         try:
-            df_final.to_csv(ruta_salida, index=False)
-            print(f"\n ¡Éxito! Dataset procesado guardado en: {ruta_salida}")
+            ruta_salida_path = resolve_file(ruta_salida)
+            df_final.to_csv(ruta_salida_path, index=False)
+            print(f"\n ¡Éxito! Dataset procesado guardado en: {ruta_salida_path}")
         except Exception as e:
             print(f"\n Error al guardar: {e}")
     
