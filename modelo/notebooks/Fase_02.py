@@ -145,7 +145,7 @@ def _(MinMaxScaler, df_model):
     else:
         print("Dataset vacío, no se puede escalar.")
         X_scaled, y_scaled, scaler_X, scaler_y, N_FEATURES = [None] * 5
-    return N_FEATURES, X_scaled, scaler_y, y, y_scaled
+    return N_FEATURES, X_scaled, scaler_X, scaler_y, y, y_scaled
 
 
 @app.cell
@@ -597,7 +597,7 @@ def _(
         print(f" Advertencia MLflow: {e}")
 
     fig_eval
-    return test_rmse, y_pred_scaled
+    return best_model, test_rmse, y_pred_scaled
 
 
 @app.cell
@@ -705,6 +705,18 @@ def _(mo):
     return
 
 
+@app.cell(disabled=True)
+def _(scaler_X, scaler_y):
+    import joblib
+
+    # Guardamos los objetos que saben transformar los datos
+    joblib.dump(scaler_X, 'scaler_X.pkl')
+    joblib.dump(scaler_y, 'scaler_y.pkl')
+
+    print("¡Listo! Envía a tu compañero: best_model.keras, scaler_X.pkl y scaler_y.pkl")
+    return
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -723,6 +735,215 @@ def _(mo):
     4.  Abre el navegador web y ve a la dirección que te indica
         (usualmente `http://127.0.0.1:5000`).
     """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 11. Pruebas con Ejemplos Específicos del Test Set
+
+    **¿Qué vamos a hacer?**
+
+    Vamos a tomar ejemplos reales del conjunto de prueba (Test) y ver:
+    1. Qué predijo el modelo
+    2. Cuál era el valor real
+    3. Cuál fue el error
+
+    **Objetivo:** Entender cómo se comporta el modelo en casos específicos.
+    """)
+    return
+
+
+@app.cell
+def _(best_model, scaler_y):
+    def predecir_ejemplo(X_secuencia, y_real_escalado, idx_ejemplo):
+        """
+        Predice un ejemplo específico y muestra el resultado.
+
+        Args:
+            X_secuencia: Una secuencia de entrada (7 días de features)
+            y_real_escalado: El valor real escalado
+            idx_ejemplo: Índice del ejemplo (para referencia)
+        """
+        # 1. Hacer predicción (el modelo espera batch dimension)
+        X_input = X_secuencia.reshape(1, X_secuencia.shape[0], X_secuencia.shape[1])
+        y_pred_escalado = best_model.predict(X_input, verbose=0)
+
+        # 2. Invertir escala (a unidades reales)
+        y_pred_real = scaler_y.inverse_transform(y_pred_escalado)[0][0]
+        y_real = scaler_y.inverse_transform(y_real_escalado.reshape(-1, 1))[0][0]
+
+        # 3. Calcular error
+        error = y_real - y_pred_real
+        error_porcentual = (abs(error) / y_real) * 100 if y_real != 0 else 0
+
+        # 4. Mostrar resultados
+        return {
+            'Índice': idx_ejemplo,
+            'Stock Real': y_real,
+            'Stock Predicho': y_pred_real,
+            'Error (unidades)': error,
+            'Error (%)': error_porcentual
+        }
+
+    print(" Función de predicción definida")
+    return (predecir_ejemplo,)
+
+
+@app.cell
+def _(X_test, mo, np, pd, predecir_ejemplo, y_test):
+    mo.md(r"""
+    ###  Probando con 10 Ejemplos Aleatorios del Test Set
+
+    Seleccionamos 10 casos al azar para ver el desempeño del modelo.
+    """)
+
+    # Seleccionar 10 índices aleatorios
+    np.random.seed(42)  # Para reproducibilidad
+    n_ejemplos = min(10, len(X_test))
+    indices_aleatorios = np.random.choice(len(X_test), n_ejemplos, replace=False)
+
+    # Predecir cada ejemplo
+    resultados_pruebas = []
+    for idx in indices_aleatorios:
+        resultado = predecir_ejemplo(X_test[idx], y_test[idx], idx)
+        resultados_pruebas.append(resultado)
+
+    # Crear DataFrame
+    df_pruebas = pd.DataFrame(resultados_pruebas)
+
+    # Estadísticas
+    error_promedio = df_pruebas['Error (%)'].mean()
+
+    mo.md(rf"""
+    ###  Resultados de las Pruebas
+
+    | Índice | Stock Real | Stock Predicho | Error (unidades) | Error (%) |
+    |--------|------------|----------------|------------------|-----------|
+    {chr(10).join([f"| {row['Índice']} | {row['Stock Real']:.2f} | {row['Stock Predicho']:.2f} | {row['Error (unidades)']:+.2f} | {row['Error (%)']:.2f}% |" for _, row in df_pruebas.iterrows()])}
+
+    ---
+
+    ** Estadísticas:**
+    - **Error Promedio:** {error_promedio:.2f}%
+    - **Mejor Predicción:** {df_pruebas.loc[df_pruebas['Error (%)'].idxmin(), 'Índice']} (Error: {df_pruebas['Error (%)'].min():.2f}%)
+    - **Peor Predicción:** {df_pruebas.loc[df_pruebas['Error (%)'].idxmax(), 'Índice']} (Error: {df_pruebas['Error (%)'].max():.2f}%)
+    """)
+
+    return (df_pruebas,)
+
+
+@app.cell
+def _(df_pruebas, plt):
+    # Gráfico de Comparación
+    fig_pruebas, axes_pruebas = plt.subplots(1, 2, figsize=(16, 6))
+
+    # 1. Barras comparativas
+    x_pos = range(len(df_pruebas))
+    axes_pruebas[0].bar([p - 0.2 for p in x_pos], df_pruebas['Stock Real'], 
+                        width=0.4, label='Real', color='steelblue', alpha=0.8)
+    axes_pruebas[0].bar([p + 0.2 for p in x_pos], df_pruebas['Stock Predicho'], 
+                        width=0.4, label='Predicción', color='forestgreen', alpha=0.8)
+    axes_pruebas[0].set_xlabel('Ejemplo')
+    axes_pruebas[0].set_ylabel('Stock (unidades)')
+    axes_pruebas[0].set_title('Comparación: Stock Real vs Predicho')
+    axes_pruebas[0].legend()
+    axes_pruebas[0].set_xticks(x_pos)
+    axes_pruebas[0].set_xticklabels([f"#{i}" for i in df_pruebas['Índice']], rotation=45)
+    axes_pruebas[0].grid(axis='y', alpha=0.3)
+
+    # 2. Distribución de errores porcentuales
+    axes_pruebas[1].barh(range(len(df_pruebas)), df_pruebas['Error (%)'], 
+                         color=['red' if x > 5 else 'green' for x in df_pruebas['Error (%)']])
+    axes_pruebas[1].set_xlabel('Error Porcentual (%)')
+    axes_pruebas[1].set_ylabel('Ejemplo')
+    axes_pruebas[1].set_title('Error Porcentual por Ejemplo')
+    axes_pruebas[1].set_yticks(range(len(df_pruebas)))
+    axes_pruebas[1].set_yticklabels([f"#{i}" for i in df_pruebas['Índice']])
+    axes_pruebas[1].axvline(x=5, color='orange', linestyle='--', label='5% threshold')
+    axes_pruebas[1].legend()
+    axes_pruebas[1].grid(axis='x', alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig('predicciones_pruebas.png', dpi=150)
+    plt.show()
+
+    print(" Gráficos de pruebas generados")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    **Análisis de los resultados:**
+
+    **Primera parte:** Lo que vemos es un comportamiento clásico de los modelos de regresión (como GRU/LSTM) entrenados con MSE (Error Cuadrático Medio).
+
+    1. La "Trampa" de los Números Pequeños (El porqué del error alto), por lo que tenemos en cuenta las predicciones mas bajas:
+
+
+        - Índice 499: Stock Real 116 -> Predicho 17.56. (Error 84%)
+
+        - Índice 155: Stock Real 82 -> Predicho 41.12. (Error 49%)
+
+        - Índice 410 (Stock Bajo): Real 71 -> Predicho 244. (Error 244%)
+
+    El problema: Cuando el stock real es muy pequeño (ej. 50 unidades), equivocarse por solo 50 unidades dispara el error porcentual al 100%. La realidad: nuestro modelo optimizó el error global. Para el modelo, equivocarse por 50 unidades es "poco" si el inventario total suele ser de miles.
+
+    **Segunda parte:** nuestra fortaleza es en Alto Volumen donde las  mejores predicciones son:
+
+        - Índice 234: Stock Real 1063 -> Predicho 1063.60. (Error 0.06%)
+
+        - Índice 289: Stock Real 1271 -> Predicho 1297. (Error 2.12%)
+
+        - Índice 321: Stock Real 1298 -> Predicho 1357. (Error 4.61%)
+
+    Conclusión del Análisis: el modelo es extremadamente fiable para productos de alta rotación o alto stock, que suelen ser los más críticos para el negocio (donde hay más dinero invertido). Sin embargo, pierde precisión y se vuelve "ruidoso" cuando las cantidades son muy pequeñas (< 150 unidades), probablemente porque en esos niveles el comportamiento es más aleatorio o volátil.
+    """)
+    return
+
+
+@app.cell
+def _(X_test, mo, predecir_ejemplo, scaler_y, y_test):
+    mo.md(r"""
+    ###  Análisis de Casos Extremos
+
+    Veamos cómo se comporta el modelo en:
+    - **Stock Bajo:** (valores mínimos en el test set)
+    - **Stock Alto:** (valores máximos en el test set)
+    """)
+
+    # Obtener valores reales en escala original
+    y_test_real_extremos = scaler_y.inverse_transform(y_test)
+
+    # Encontrar índices de min y max
+    idx_min = y_test_real_extremos.argmin()
+    idx_max = y_test_real_extremos.argmax()
+
+    # Predecir
+    resultado_min = predecir_ejemplo(X_test[idx_min], y_test[idx_min], idx_min)
+    resultado_max = predecir_ejemplo(X_test[idx_max], y_test[idx_max], idx_max)
+
+    mo.md(rf"""
+     Stock Más Bajo:
+    - Índice: {resultado_min['Índice']}
+    - Real: {resultado_min['Stock Real']:.2f} unidades
+    - Predicho: {resultado_min['Stock Predicho']:.2f} unidades
+    - Error: {resultado_min['Error (%)']:.2f}%
+
+     Stock Más Alto:
+    - Índice: {resultado_max['Índice']}
+    - Real: {resultado_max['Stock Real']:.2f} unidades
+    - Predicho: {resultado_max['Stock Predicho']:.2f} unidades
+    - Error: {resultado_max['Error (%)']:.2f}%
+
+    ---
+
+     Insight:
+    {f"El modelo tiene mejor desempeño en stock {'bajo' if resultado_min['Error (%)'] < resultado_max['Error (%)'] else 'alto'}." if abs(resultado_min['Error (%)'] - resultado_max['Error (%)']) > 1 else "El modelo mantiene precisión consistente en ambos extremos."}
+    """)
+
     return
 
 

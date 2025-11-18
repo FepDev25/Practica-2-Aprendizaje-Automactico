@@ -91,7 +91,7 @@ def _(mo):
 def _(pd):
     try:
         df_model = pd.read_csv("C:/Users/samil/Desktop/APRENDIZAJE AUTOMATICO/PRIMER INTERCICLO/Practica-2-Aprendizaje-Automactico/data/dataset_processed_advanced.csv")
-        print(f"✓ Dataset cargado exitosamente. Forma: {df_model.shape}")
+        print(f"Dataset cargado exitosamente. Forma: {df_model.shape}")
 
         cols_a_excluir = ['product_sku']
         if 'region_almacen' in df_model.columns:
@@ -639,7 +639,7 @@ def _(mo, results_df_sorted):
 
     ---
 
-    ### 🔍 Interpretación:
+    ###  Interpretación:
 
     Este modelo representa la **configuración óptima** encontrada entre las {len(results_df_sorted)} 
     combinaciones evaluadas. Ha demostrado el mejor balance entre:
@@ -862,13 +862,13 @@ def _(mo):
 def _(final_mae, final_r2, final_rmse, mo, pd, plt):
     mo.md(r"""
     ##  Comparación: Baseline (Fase 2) vs Mejor Modelo (Grid Search)
-    
+
     **¿El Grid Search realmente mejoró el modelo?**
-    
+
     Comparamos las métricas del modelo original (donde adivinamos los hiperparámetros)
     con el mejor modelo encontrado por Grid Search (búsqueda exhaustiva).
     """)
-    
+
     #
     # DATOS REALES DE TU FASE 2
 
@@ -876,7 +876,7 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
     baseline_mae = 57.341    # MAE de la Fase 2 (unidades)
     baseline_rmse = 75.865   # RMSE de la Fase 2 (unidades)
 
-    
+
     comparison_data = {
         'Modelo': ['Baseline (Fase 2)', 'Mejor Modelo (Grid Search)'],
         'R²': [baseline_r2, final_r2],
@@ -886,7 +886,7 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
 
     comparison_df = pd.DataFrame(comparison_data)
 
-    
+
     mejora_r2 = ((final_r2 - baseline_r2) / baseline_r2) * 100
     mejora_mae = ((baseline_mae - final_mae) / baseline_mae) * 100
     mejora_rmse = ((baseline_rmse - final_rmse) / baseline_rmse) * 100
@@ -894,31 +894,31 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
 
     mo.md(rf"""
     ###  Tabla Comparativa
-    
+
     | Modelo | R² | MAE (unidades) | RMSE (unidades) |
     |--------|-----|----------------|-----------------|
     | **Baseline (Fase 2)** | {baseline_r2:.4f} | {baseline_mae:.2f} | {baseline_rmse:.2f} |
     | **Grid Search (Optimizado)** | {final_r2:.4f} | {final_mae:.2f} | {final_rmse:.2f} |
-    
+
     ---
-    
+
     ###  Mejoras Porcentuales
-    
+
     | Métrica | Mejora |
     |---------|--------|
     | **R²** | {mejora_r2:+.2f}% {'bien' if mejora_r2 > 0 else 'alerta'} |
     | **MAE** | {mejora_mae:+.2f}% {'bien' if mejora_mae > 0 else 'alerta'} |
     | **RMSE** | {mejora_rmse:+.2f}% {'bien' if mejora_rmse > 0 else 'alerta'} |
-    
+
     ---
-    
+
     ###  Interpretación de Resultados
-    
+
     {f'''
     - **MAE mejoró en {mejora_mae:.2f}%:** El error promedio se redujo de {baseline_mae:.2f} a {final_mae:.2f} unidades.
     - **RMSE mejoró en {mejora_rmse:.2f}%:** El error general bajó de {baseline_rmse:.2f} a {final_rmse:.2f} unidades.
     - **R² {'mejoró' if mejora_r2 > 0 else 'se mantuvo similar'}:** El modelo ahora explica {final_r2*100:.2f}% de la varianza (vs {baseline_r2*100:.2f}% anterior).
-    
+
     **Conclusión:** {' **¡Éxito!** El Grid Search encontró una configuración superior al modelo baseline.' if mejora_mae > 0 else '⚠️ El modelo baseline ya era muy bueno. Considera ampliar el espacio de búsqueda.'}
     ''' if mejora_mae > 0 else f'''
      **Nota:** El modelo baseline (Fase 2) sigue siendo competitivo. Esto puede significar que:
@@ -933,7 +933,7 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
 
     metrics_names = ['R²', 'MAE', 'RMSE']
     colors_comparison = ['steelblue', 'forestgreen']
-    
+
     for idx_m, (ax_comp, metric_name) in enumerate(zip(axes_comparison, metrics_names)):
         values_metric = comparison_df[metric_name].values
         bars_comp = ax_comp.bar(
@@ -944,7 +944,7 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
             edgecolor='black',
             linewidth=1.5
         )
-        
+
         ax_comp.set_title(f'Comparación: {metric_name}', fontsize=14, fontweight='bold')
         ax_comp.set_ylabel(metric_name, fontsize=12)
         ax_comp.grid(axis='y', alpha=0.3, linestyle='--')
@@ -962,7 +962,7 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
                 fontweight='bold',
                 fontsize=11
             )
-        
+
         # Rotar etiquetas del eje x
         ax_comp.set_xticklabels(comparison_df['Modelo'], rotation=15, ha='right')
 
@@ -972,17 +972,9 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
     plt.show()
 
     print(" Comparación completada y guardada en:", comparison_plot_path)
-    
+
     # Retornar variables
-    return (
-        baseline_mae,
-        baseline_r2,
-        baseline_rmse,
-        comparison_df,
-        mejora_mae,
-        mejora_r2,
-        mejora_rmse,
-    )
+    return
 
 
 @app.cell
