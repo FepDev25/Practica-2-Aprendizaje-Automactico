@@ -1,0 +1,30 @@
+# FastAPI y servidor
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+python-multipart==0.0.12
+
+# Machine Learning
+tensorflow==2.18.0
+keras==3.12.0
+scikit-learn==1.6.2
+joblib==1.5.2
+numpy==1.26.4
+pandas==2.2.3
+
+# LangChain y Google AI
+langchain==1.0.3
+langchain-core==1.0.3
+langchain-google-vertexai==2.0.12
+langchain-community==1.0.5
+
+# Google Cloud
+google-cloud-aiplatform==1.76.0
+google-auth==2.43.0
+
+# Base de datos
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+
+# Utilidades
+python-dotenv==1.0.1
+pydantic==2.10.6

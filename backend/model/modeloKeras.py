@@ -9,16 +9,20 @@ import pandas as pd
 from joblib import load, dump
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
+from pathlib import Path
+from paths import resolve_file, FILES_DIR
 
 
 
 N_STEPS = 7
-scaler_y = load("scaler_y.joblib")
+# Cargar scaler_y desde ubicación absoluta (production-safe)
+scaler_y = load(str(resolve_file("scaler_y.joblib")))
 
 class ModeloStockKeras:
-    def __init__(self, modelo_path="best_model.keras"):
+    def __init__(self, modelo_path="model.keras"):
         """
-        modelo_path: ruta donde guardaste tu modelo Keras .
+        modelo_path: ruta donde guardaste tu modelo Keras (nombre de archivo o ruta absoluta).
+        Por defecto busca 'model.keras' en backend/model/files/
         """
         self.modelo_path = modelo_path
         self.model = None
@@ -26,8 +30,9 @@ class ModeloStockKeras:
 
     def _cargar_modelo(self):
         try:
-            self.model = load_model(self.modelo_path)
-            print(f"Modelo Keras cargado desde: {self.modelo_path}")
+            modelo_ruta = resolve_file(self.modelo_path)
+            self.model = load_model(str(modelo_ruta))
+            print(f"Modelo Keras cargado desde: {modelo_ruta}")
         except Exception as e:
             print(f"Error al cargar el modelo Keras: {e}")
             self.model = None
@@ -76,7 +81,7 @@ def create_sequences(X_data, y_data, time_steps=7):
 
 def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.csv",
                                       path_nuevo="dataset_processed_advanced2.csv",
-                                      ruta_modelo="best_model.keras"):
+                                      ruta_modelo="model.keras"):
     """
     1. Carga los dos datasets.
     2. Igual las columnas entre ambos.
@@ -89,8 +94,12 @@ def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.
     # ------------------------------------------------------------------
     # 1. Cargar datasets
     # ------------------------------------------------------------------
-    df1 = pd.read_csv(path_original)
-    df2 = pd.read_csv(path_nuevo)
+    # Resolver rutas relativas dentro de FILES_DIR si se entregaron nombres
+    path1 = resolve_file(path_original)
+    path2 = resolve_file(path_nuevo)
+
+    df1 = pd.read_csv(path1)
+    df2 = pd.read_csv(path2)
 
     print("Dataset original:", df1.shape)
     print("Dataset nuevo:", df2.shape)
@@ -133,8 +142,9 @@ def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.
     
     
     try:
-        df2.to_csv("dataset_processed_advanced.csv", index=False)  
-        print(f"df2 guardado con éxito en: {"dataset_processed_advanced.csv"}")
+        out_path = resolve_file("dataset_processed_advanced.csv")
+        df2.to_csv(out_path, index=False)
+        print(f"df2 guardado con éxito en: {out_path}")
     except Exception as e:
         print(f"Error al guardar df2: {e}")
     # ------------------------------------------------------------------
@@ -158,8 +168,8 @@ def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.
     # ------------------------------------------------------------------
     # 8. Cargar scalers originales
     # ------------------------------------------------------------------
-    scaler_X = load("scaler_X.joblib")
-    scaler_y = load("scaler_y.joblib")
+    scaler_X = load(str(resolve_file("scaler_X.joblib")))
+    scaler_y = load(str(resolve_file("scaler_y.joblib")))
 
     print("Scalers cargados.")
 
@@ -184,7 +194,9 @@ def reentrenar_modelo_con_diferencias(path_original="dataset_processed_advanced.
     # ------------------------------------------------------------------
     # 11. Cargar el modelo actual
     # ------------------------------------------------------------------
-    model = load_model(ruta_modelo)
+    # Cargar el modelo actual (resolviendo ruta relativa si aplica)
+    ruta_modelo_resuelta = resolve_file(ruta_modelo)
+    model = load_model(str(ruta_modelo_resuelta))
     print("Modelo GRU cargado.")
 
     # ------------------------------------------------------------------
