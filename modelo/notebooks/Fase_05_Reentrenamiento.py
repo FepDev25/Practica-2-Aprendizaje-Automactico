@@ -607,7 +607,7 @@ def _(mo):
 
     1. R² (R-squared): 0.966
 
-    Un R² de 0.956 significa que nuestro modelo GRU es capaz de explicar el 96.6% del comportamiento (varianza) del stock disponible. Es decir, el modelo entiende casi perfectamente por qué el stock sube o baja.
+    Un R² de 0.966 significa que nuestro modelo GRU es capaz de explicar el 96.6% del comportamiento (varianza) del stock disponible. Es decir, el modelo entiende casi perfectamente por qué el stock sube o baja.
 
     2. MAE (Error Absoluto Medio): 57.341 unidades
 
@@ -670,6 +670,8 @@ def _(mo):
 
 @app.cell
 def _(mean_absolute_error, mean_squared_error, mo, np, y_pred_scaled, y_test):
+    # Cálculo de errores en escala normalizada (0 a 1)
+    # ------------------------------------------------
 
     # 1. Calculamos las métricas usando los datos SIN inverse_transform
     # y_test: son los valores reales escalados (vienen de create_sequences)
@@ -698,7 +700,7 @@ def _(mean_absolute_error, mean_squared_error, mo, np, y_pred_scaled, y_test):
 def _(mo):
     mo.md(r"""
     **Análisis de los Resultados:**
-    un error de 0.0104 en esa escala significa que el error promedio del modelo es inferior al 1% del rango total de los datos. Es otra forma de confirmar, a nivel matemático, que la precisión es altísima. El modelo apenas comete errores significativos.
+    un error de 0.0095 en esa escala significa que el error promedio del modelo es inferior al 1% del rango total de los datos. Es otra forma de confirmar, a nivel matemático, que la precisión es altísima. El modelo apenas comete errores significativos.
     """)
     return
 
@@ -828,6 +830,7 @@ def _(X_test, mo, np, pd, predecir_ejemplo, y_test):
     - **Mejor Predicción:** {df_pruebas.loc[df_pruebas['Error (%)'].idxmin(), 'Índice']} (Error: {df_pruebas['Error (%)'].min():.2f}%)
     - **Peor Predicción:** {df_pruebas.loc[df_pruebas['Error (%)'].idxmax(), 'Índice']} (Error: {df_pruebas['Error (%)'].max():.2f}%)
     """)
+
     return (df_pruebas,)
 
 
@@ -940,6 +943,7 @@ def _(X_test, mo, predecir_ejemplo, scaler_y, y_test):
      Insight:
     {f"El modelo tiene mejor desempeño en stock {'bajo' if resultado_min['Error (%)'] < resultado_max['Error (%)'] else 'alto'}." if abs(resultado_min['Error (%)'] - resultado_max['Error (%)']) > 1 else "El modelo mantiene precisión consistente en ambos extremos."}
     """)
+
     return
 
 

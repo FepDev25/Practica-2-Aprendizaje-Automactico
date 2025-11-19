@@ -202,44 +202,141 @@
     {
       "id": "MJUe",
       "code_hash": "bc07401ca9be7fa3cdcea5548516f9f2",
-      "outputs": [],
-      "console": []
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Librer\u00edas importadas correctamente.\n",
+          "mimetype": "text/plain"
+        }
+      ]
     },
     {
       "id": "bkHC",
       "code_hash": "367abb9dfda22c1b1eb30741e43c17d4",
-      "outputs": [],
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='bkHC-0' random-id='2fd0de88-889c-4409-1077-cca524a74327'><marimo-dataframe data-initial-value='{&quot;transforms&quot;:[]}' data-label='null' data-columns='[[&quot;Variable&quot;,&quot;string&quot;,&quot;object&quot;],[&quot;Tipo de Dato&quot;,&quot;string&quot;,&quot;object&quot;],[&quot;Descripci\u00f3n&quot;,&quot;string&quot;,&quot;object&quot;]]' data-dataframe-name='&quot;df_diccionario_original&quot;' data-total='37' data-page-size='5' data-show-download='true'></marimo-dataframe></marimo-ui-element>"
+          }
+        }
+      ],
       "console": []
     },
     {
       "id": "PKri",
       "code_hash": "9e5719e40b34a4cb1e677ce9fe572871",
-      "outputs": [],
-      "console": []
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Dataset ordenado por 'product_sku' y 'created_at'.\nVariable Objetivo para lags/medias: 'quantity_available'\n<class 'pandas.core.frame.DataFrame'>\nIndex: 7500 entries, 500 to 7499\nData columns (total 37 columns):\n #   Column                  Non-Null Count  Dtype         \n---  ------                  --------------  -----         \n 0   id                      7500 non-null   int64         \n 1   created_at              7500 non-null   datetime64[ns]\n 2   product_id              7500 non-null   int64         \n 3   product_name            7500 non-null   object        \n 4   product_sku             7500 non-null   object        \n 5   supplier_id             7500 non-null   int64         \n 6   supplier_name           7500 non-null   object        \n 7   prioridad_proveedor     7500 non-null   int64         \n 8   quantity_on_hand        7500 non-null   int64         \n 9   quantity_reserved       7500 non-null   int64         \n 10  quantity_available      7500 non-null   int64         \n 11  minimum_stock_level     7500 non-null   int64         \n 12  reorder_point           7500 non-null   int64         \n 13  optimal_stock_level     7500 non-null   int64         \n 14  reorder_quantity        7500 non-null   int64         \n 15  average_daily_usage     7500 non-null   float64       \n 16  last_order_date         7500 non-null   datetime64[ns]\n 17  last_stock_count_date   7500 non-null   datetime64[ns]\n 18  unit_cost               7500 non-null   float64       \n 19  total_value             7500 non-null   float64       \n 20  expiration_date         7500 non-null   datetime64[ns]\n 21  batch_number            7500 non-null   object        \n 22  warehouse_location      7500 non-null   object        \n 23  shelf_location          7500 non-null   object        \n 24  region_almacen          7500 non-null   object        \n 25  stock_status            7500 non-null   object        \n 26  is_active               7500 non-null   int64         \n 27  last_updated_at         7500 non-null   datetime64[ns]\n 28  created_by_id           7500 non-null   int64         \n 29  record_sequence_number  7500 non-null   int64         \n 30  categoria_producto      7500 non-null   object        \n 31  subcategoria_producto   7500 non-null   object        \n 32  anio                    7500 non-null   int64         \n 33  mes                     7500 non-null   int64         \n 34  vacaciones_o_no         7500 non-null   bool          \n 35  es_feriado              7500 non-null   bool          \n 36  temporada_alta          7500 non-null   bool          \ndtypes: bool(3), datetime64[ns](5), float64(3), int64(16), object(10)\nmemory usage: 2.0+ MB\n",
+          "mimetype": "text/plain"
+        }
+      ]
     },
     {
       "id": "RGSE",
       "code_hash": "6d4dfb7e4f9f4f73f6c88b97c91794ef",
-      "outputs": [],
-      "console": []
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Variables temporales nuevas creadas (semana, dia, trimestre, estacion).\nVariables booleanas existentes (vacaciones, feriado, temporada_alta) convertidas a 0/1.\n\n--- df.info() despu\u00e9s de procesar variables temporales ---\n<class 'pandas.core.frame.DataFrame'>\nIndex: 7500 entries, 500 to 7499\nData columns (total 43 columns):\n #   Column                  Non-Null Count  Dtype         \n---  ------                  --------------  -----         \n 0   id                      7500 non-null   int64         \n 1   created_at              7500 non-null   datetime64[ns]\n 2   product_id              7500 non-null   int64         \n 3   product_name            7500 non-null   object        \n 4   product_sku             7500 non-null   object        \n 5   supplier_id             7500 non-null   int64         \n 6   supplier_name           7500 non-null   object        \n 7   prioridad_proveedor     7500 non-null   int64         \n 8   quantity_on_hand        7500 non-null   int64         \n 9   quantity_reserved       7500 non-null   int64         \n 10  quantity_available      7500 non-null   int64         \n 11  minimum_stock_level     7500 non-null   int64         \n 12  reorder_point           7500 non-null   int64         \n 13  optimal_stock_level     7500 non-null   int64         \n 14  reorder_quantity        7500 non-null   int64         \n 15  average_daily_usage     7500 non-null   float64       \n 16  last_order_date         7500 non-null   datetime64[ns]\n 17  last_stock_count_date   7500 non-null   datetime64[ns]\n 18  unit_cost               7500 non-null   float64       \n 19  total_value             7500 non-null   float64       \n 20  expiration_date         7500 non-null   datetime64[ns]\n 21  batch_number            7500 non-null   object        \n 22  warehouse_location      7500 non-null   object        \n 23  shelf_location          7500 non-null   object        \n 24  region_almacen          7500 non-null   object        \n 25  stock_status            7500 non-null   object        \n 26  is_active               7500 non-null   int64         \n 27  last_updated_at         7500 non-null   datetime64[ns]\n 28  created_by_id           7500 non-null   int64         \n 29  record_sequence_number  7500 non-null   int64         \n 30  categoria_producto      7500 non-null   object        \n 31  subcategoria_producto   7500 non-null   object        \n 32  anio                    7500 non-null   int64         \n 33  mes                     7500 non-null   int64         \n 34  vacaciones_o_no         7500 non-null   int64         \n 35  es_feriado              7500 non-null   int64         \n 36  temporada_alta          7500 non-null   int64         \n 37  semana_del_anio         7500 non-null   UInt32        \n 38  dia_del_mes             7500 non-null   int32         \n 39  dia_de_la_semana        7500 non-null   int32         \n 40  es_fin_de_semana        7500 non-null   int64         \n 41  trimestre               7500 non-null   int32         \n 42  estacion                7500 non-null   object        \ndtypes: UInt32(1), datetime64[ns](5), float64(3), int32(3), int64(20), object(11)\nmemory usage: 2.4+ MB\n\n--- df.head().T despu\u00e9s de procesar variables temporales ---\n",
+          "mimetype": "text/plain"
+        },
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "                                500                  501                  502  \\\nproduct_sku                 BCA-115              BCA-115              BCA-115   \ncreated_at      2024-01-01 00:00:00  2024-01-02 00:00:00  2024-01-03 00:00:00   \nmes                               1                    1                    1   \nestacion                   Invierno             Invierno             Invierno   \nes_feriado                        1                    0                    0   \ntemporada_alta                    1                    1                    1   \n\n                                503                  504  \nproduct_sku                 BCA-115              BCA-115  \ncreated_at      2024-01-04 00:00:00  2024-01-05 00:00:00  \nmes                               1                    1  \nestacion                   Invierno             Invierno  \nes_feriado                        0                    0  \ntemporada_alta                    1                    1  \n",
+          "mimetype": "text/plain"
+        }
+      ]
     },
     {
       "id": "Hstk",
       "code_hash": "716eda76b88a3009f0b3fb3725121db9",
-      "outputs": [],
-      "console": []
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='Hstk-0' random-id='5a068636-d7cb-4522-e1d1-194b7f7ff82e'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;&#92;&quot;:500,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-01T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:351,&#92;&quot;lag_1&#92;&quot;:null,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:501,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-02T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:342,&#92;&quot;lag_1&#92;&quot;:351.0,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:502,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-03T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:333,&#92;&quot;lag_1&#92;&quot;:342.0,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:503,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-04T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:324,&#92;&quot;lag_1&#92;&quot;:333.0,&#92;&quot;lag_7&#92;&quot;:null},{&#92;&quot;&#92;&quot;:504,&#92;&quot;product_sku&#92;&quot;:&#92;&quot;BCA-115&#92;&quot;,&#92;&quot;created_at&#92;&quot;:&#92;&quot;2024-01-05T00:00:00.000&#92;&quot;,&#92;&quot;quantity_available&#92;&quot;:319,&#92;&quot;lag_1&#92;&quot;:324.0,&#92;&quot;lag_7&#92;&quot;:null}]&quot;' data-total-rows='5' data-total-columns='5' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;product_sku&quot;,[&quot;string&quot;,&quot;object&quot;]],[&quot;created_at&quot;,[&quot;datetime&quot;,&quot;datetime64[ns]&quot;]],[&quot;quantity_available&quot;,[&quot;integer&quot;,&quot;int64&quot;]],[&quot;lag_1&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;lag_7&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-show-filters='true' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='false' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[[&quot;&quot;,[&quot;integer&quot;,&quot;int64&quot;]]]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Variables Lag (1, 7, 30) creadas para 'quantity_available'.\n",
+          "mimetype": "text/plain"
+        }
+      ]
     },
     {
       "id": "ZHCJ",
       "code_hash": "afd6772e9118a404c9cdcfbeaf08d363",
-      "outputs": [],
-      "console": []
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Medias m\u00f3viles (7d, 30d, Exp) y Std (30d) creadas.\n",
+          "mimetype": "text/plain"
+        }
+      ]
     },
     {
       "id": "TqIu",
       "code_hash": "87fbb99d8c8930a7d1cff51152ab5fcc",
-      "outputs": [],
-      "console": []
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Variables sint\u00e9ticas (variaci\u00f3n, tendencia, ratios, anomal\u00eda) creadas.\nVariable sint\u00e9tica 'rotacion_estimada_30d' CREADA.\n\n--- df.info() despu\u00e9s de crear variables sint\u00e9ticas ---\n<class 'pandas.core.frame.DataFrame'>\nIndex: 7500 entries, 500 to 7499\nData columns (total 56 columns):\n #   Column                      Non-Null Count  Dtype         \n---  ------                      --------------  -----         \n 0   id                          7500 non-null   int64         \n 1   created_at                  7500 non-null   datetime64[ns]\n 2   product_id                  7500 non-null   int64         \n 3   product_name                7500 non-null   object        \n 4   product_sku                 7500 non-null   object        \n 5   supplier_id                 7500 non-null   int64         \n 6   supplier_name               7500 non-null   object        \n 7   prioridad_proveedor         7500 non-null   int64         \n 8   quantity_on_hand            7500 non-null   int64         \n 9   quantity_reserved           7500 non-null   int64         \n 10  quantity_available          7500 non-null   int64         \n 11  minimum_stock_level         7500 non-null   int64         \n 12  reorder_point               7500 non-null   int64         \n 13  optimal_stock_level         7500 non-null   int64         \n 14  reorder_quantity            7500 non-null   int64         \n 15  average_daily_usage         7500 non-null   float64       \n 16  last_order_date             7500 non-null   datetime64[ns]\n 17  last_stock_count_date       7500 non-null   datetime64[ns]\n 18  unit_cost                   7500 non-null   float64       \n 19  total_value                 7500 non-null   float64       \n 20  expiration_date             7500 non-null   datetime64[ns]\n 21  batch_number                7500 non-null   object        \n 22  warehouse_location          7500 non-null   object        \n 23  shelf_location              7500 non-null   object        \n 24  region_almacen              7500 non-null   object        \n 25  stock_status                7500 non-null   object        \n 26  is_active                   7500 non-null   int64         \n 27  last_updated_at             7500 non-null   datetime64[ns]\n 28  created_by_id               7500 non-null   int64         \n 29  record_sequence_number      7500 non-null   int64         \n 30  categoria_producto          7500 non-null   object        \n 31  subcategoria_producto       7500 non-null   object        \n 32  anio                        7500 non-null   int64         \n 33  mes                         7500 non-null   int64         \n 34  vacaciones_o_no             7500 non-null   int64         \n 35  es_feriado                  7500 non-null   int64         \n 36  temporada_alta              7500 non-null   int64         \n 37  semana_del_anio             7500 non-null   UInt32        \n 38  dia_del_mes                 7500 non-null   int32         \n 39  dia_de_la_semana            7500 non-null   int32         \n 40  es_fin_de_semana            7500 non-null   int64         \n 41  trimestre                   7500 non-null   int32         \n 42  estacion                    7500 non-null   object        \n 43  lag_1                       7485 non-null   float64       \n 44  lag_7                       7395 non-null   float64       \n 45  lag_30                      7050 non-null   float64       \n 46  media_movil_7d              7500 non-null   float64       \n 47  media_movil_30d             7500 non-null   float64       \n 48  media_movil_exponencial     7500 non-null   float64       \n 49  std_movil_30d               7500 non-null   float64       \n 50  variacion_stock_diaria      7485 non-null   float64       \n 51  tendencia_stock             7500 non-null   float64       \n 52  dias_desde_ultimo_pedido    7500 non-null   int64         \n 53  ratio_reservado_disponible  7500 non-null   float64       \n 54  anomalia_stock              7500 non-null   float64       \n 55  rotacion_estimada_30d       7500 non-null   float64       \ndtypes: UInt32(1), datetime64[ns](5), float64(15), int32(3), int64(21), object(11)\nmemory usage: 3.2+ MB\n\n--- df.head().T despu\u00e9s de crear variables sint\u00e9ticas ---\n                                                 500  \\\nid                                                 1   \ncreated_at                       2024-01-01 00:00:00   \nproduct_id                                       115   \nproduct_name                Barra Chocolate Avellana   \nproduct_sku                                  BCA-115   \n...                                              ...   \ntendencia_stock                                0.000   \ndias_desde_ultimo_pedido                           3   \nratio_reservado_disponible                     0.051   \nanomalia_stock                                 0.000   \nrotacion_estimada_30d                          0.940   \n\n                                                 501  \\\nid                                                 2   \ncreated_at                       2024-01-02 00:00:00   \nproduct_id                                       115   \nproduct_name                Barra Chocolate Avellana   \nproduct_sku                                  BCA-115   \n...                                              ...   \ntendencia_stock                                0.000   \ndias_desde_ultimo_pedido                           2   \nratio_reservado_disponible                     0.044   \nanomalia_stock                                -0.707   \nrotacion_estimada_30d                          0.866   \n\n                                                 502  \\\nid                                                 3   \ncreated_at                       2024-01-03 00:00:00   \nproduct_id                                       115   \nproduct_name                Barra Chocolate Avellana   \nproduct_sku                                  BCA-115   \n...                                              ...   \ntendencia_stock                                0.000   \ndias_desde_ultimo_pedido                           3   \nratio_reservado_disponible                     0.060   \nanomalia_stock                                -1.000   \nrotacion_estimada_30d                          0.877   \n\n                                                 503                       504  \nid                                                 4                         5  \ncreated_at                       2024-01-04 00:00:00       2024-01-05 00:00:00  \nproduct_id                                       115                       115  \nproduct_name                Barra Chocolate Avellana  Barra Chocolate Avellana  \nproduct_sku                                  BCA-115                   BCA-115  \n...                                              ...                       ...  \ntendencia_stock                                0.000                     0.000  \ndias_desde_ultimo_pedido                           4                         1  \nratio_reservado_disponible                     0.062                     0.053  \nanomalia_stock                                -1.162                    -1.136  \nrotacion_estimada_30d                          0.889                     0.899  \n\n[56 rows x 5 columns]\n",
+          "mimetype": "text/plain"
+        }
+      ]
     },
     {
       "id": "ulZA",

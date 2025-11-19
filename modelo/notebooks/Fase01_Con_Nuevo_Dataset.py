@@ -417,7 +417,7 @@ def _(mo):
     return
 
 
-@app.cell(disabled=True)
+@app.cell
 def _(df, mo, pd):
     # Ver cuántos nulos se crearon por los nuevos features
     nulos_antes = df.isnull().sum().sort_values(ascending=False)

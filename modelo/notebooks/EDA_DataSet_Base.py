@@ -9,8 +9,9 @@ def _(mo):
     mo.md(r"""
     # Fase 1: Análisis, Preparación y Feature Engineering
 
-        Notebook para la preparación completa de los datos de `dataset.csv`,
+        - Este notebook es para la preparación completa de los datos de `dataset.csv`,
         incluyendo las nuevas variables temporales, históricas y sintéticas.
+        - **Importante:** se hizo una reestructuración completa del dataset base en comparación con el que utilizamos en la práctica anterior. Nos enfocamos en 15 productos de una misma categoría, a los cuales fuimos creando 500 registros secuenciales para cada uno. Además, agregamos variables como "mes, vacaciones_o_no, es_feriado, temporada_alta", dado que aportan con mucha más información y realismo al mismo dataset.
     """)
     return
 
@@ -141,6 +142,21 @@ def _(df, np):
     return categoricas, numericas
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### **Interpretación de los resultados**
+    El conjunto de datos consta de 7500 entradas y 37 columnas (variables). Un hallazgo crucial es que no se encontraron valores nulos en ninguna de las columnas, lo que simplifica la fase de preprocesamiento al eliminar la necesidad de imputación.
+
+    1. Variables Numéricas: Las variables de inventario y los identificadores (como id, product_id, quantity_on_hand, unit_cost, average_daily_usage) están correctamente tipificadas como int64 o float64.
+
+    2. Variables Categóricas/Temporales: Las columnas como created_at, product_name, supplier_name, y todas las variables relacionadas con fechas (last_updated_at, last_order_date, expiration_date) están etiquetadas como object.
+
+    3. Feature Engineering: Será necesario convertir las columnas de tipo fecha/hora (created_at, last_updated_at, etc.) al tipo datetime para extraer características temporales (e.g., día de la semana, semana del año), lo cual es fundamental para modelos de series de tiempo como las Redes GRU.
+    """)
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -173,6 +189,27 @@ def _(categoricas, df):
         if unique_count <= 10:
             print(f'  - Distribución:')
             print(df[_col].value_counts().to_string(header=False))
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### **Interpretación de variables de inventario, demanda, costo y valor**
+    Las estadísticas descriptivas (count, mean, std, min, max, quartiles, skewness, kurtosis) proporcionan una visión detallada de la distribución de las variables clave del inventario.
+
+    1. **quantity_on_hand (Cantidad en Existencia):**
+
+        - Media: 1515.789; Desviación Estándar (std): 1278.526. La alta desviación y una asimetría (skewness) de 1.228 indican una distribución sesgada a la derecha, lo que implica que la mayoría de los registros tienen una cantidad baja/media, pero hay un número significativo de artículos con existencias muy altas (máximo de 6104). Esto sugiere la presencia de productos de muy alta rotación.
+
+    2. **reorder_quantity (Cantidad de Reordenamiento):**
+
+        - Media: 28.720; Máximo: 250.000. Presenta una asimetría muy alta (2.255) y una curtosis muy alta (3.165), lo que confirma que la mayoría de las órdenes de reabastecimiento son pequeñas, pero hay órdenes excepcionalmente grandes. La curtosis positiva elevada indica una distribución con colas pesadas y picos pronunciados.
+
+    3. **average_daily_usage (Uso Diario Promedio):**
+
+        - Media: 31.513; std: 17.378. La asimetría de 0.618 sugiere que los productos se consumen en su mayoría a tasas bajas a medias, con pocos productos que tienen un consumo diario excepcionalmente alto.
+    """)
     return
 
 
@@ -248,6 +285,17 @@ def _(df, numericas, plt):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""
+    ### **Análisis de distribución de variables de inventario**
+
+    - **Sesgo Extremo y Outliers:** Las variables de cantidad ($\text{quantity\_on\_hand}$ y $\text{quantity\_available}$) muestran un fuerte sesgo positivo (a la derecha). Esto implica que la mayoría de los productos tienen existencias bajas, y los boxplots confirman la presencia de numerosos valores atípicos (outliers), lo que requiere escalado y, potencialmente, una transformación logarítmica en el Feature Engineering.
+    - **Niveles de Stock Discretos:** Los niveles de control de inventario ($\text{minimum\_stock\_level}$, $\text{reorder\_point}$, $\text{optimal\_stock\_level}$) no son continuos. Muestran distribuciones multimodales (varios picos) con valores predefinidos. Esto indica que las políticas de stock se basan en niveles fijos, no en un cálculo puramente continuo, lo que es una característica de negocio.
+    """)
+    return
+
+
+@app.cell
 def _(df, inventory_vars, plt):
     # Boxplots para identificar outliers visualmente
     if len(inventory_vars) > 0:
@@ -300,6 +348,16 @@ def _(df, np, numericas, pd, plt, sns):
         print(strong_corr_df.to_string(index=False))
     else:
         print('No se encontraron correlaciones fuertes entre las variables.')
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### **Análisis de matriz de correlación**
+    - Fuerte Dependencia del Uso Diario: Las variables de Nivel de Stock ($\text{minimum\_stock\_level}$, $\text{reorder\_point}$, $\text{optimal\_stock\_level}$) están altamente correlacionadas ($\mathbf{r > 0.90}$) con el Uso Diario Promedio ($\text{average\_daily\_usage}$). Esto confirma que las políticas de inventario están basadas en la demanda histórica.
+    - Implicación para el Modelo: Debido a la alta correlación entre las variables de stock y $\text{average\_daily\_usage}$, es crucial seleccionar cuidadosamente las features. Si el objetivo es predecir el stock, $\text{average\_daily\_usage}$ es la feature más predictiva.
+    """)
     return
 
 
@@ -362,6 +420,19 @@ def _(df, pd, plt):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### **Análisis / evolución temporal de variable clave**
+    1. Tendencia Alza Dominante: El Stock Disponible y el Valor Total del Inventario exhiben una fuerte y clara tendencia alcista a lo largo del periodo, lo que es el patrón principal que el modelo GRU debe aprender y extrapolar.
+
+    2. Estacionalidad Mensual: El gráfico de Stock Promedio por Mes sugiere una clara estacionalidad, con picos de inventario en los meses 4 (Abril) y al final del año (11 y 12 - Noviembre/Diciembre). La variable mes debe ser una característica crucial para el modelo.
+
+    3. Stock Reservado Estacionario: El Stock Reservado muestra un comportamiento más estacionario, oscilando sin una tendencia a largo plazo.
+    """)
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -421,51 +492,7 @@ def _(df, plt, sns):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 10. Análisis de Estacionalidad y Factores Externos
-
-    Evaluación del impacto de factores temporales como temporada alta, feriados y vacaciones en el comportamiento del inventario.
-    """)
-    return
-
-
-@app.cell
-def _(df, plt):
-    # Análisis del impacto de factores externos
-    seasonal_factors = ['temporada_alta', 'es_feriado', 'vacaciones_o_no']
-    available_factors = [f for f in seasonal_factors if f in df.columns]
-    if available_factors and 'quantity_available' in df.columns:
-        n_factors = len(available_factors)
-        _fig, _axes = plt.subplots(1, n_factors, figsize=(6 * n_factors, 5))
-        if n_factors == 1:
-            _axes = [_axes]
-        for _idx, factor in enumerate(available_factors):
-            factor_data = df.groupby(factor)['quantity_available'].mean().sort_index()
-            labels = ['No', 'Sí'] if len(factor_data) == 2 else factor_data.index
-            _axes[_idx].bar(range(len(factor_data)), factor_data.values, color=['lightcoral', 'lightgreen'][:len(factor_data)])
-            _axes[_idx].set_title(f"Stock Disponible vs {factor.replace('_', ' ').title()}", fontweight='bold', fontsize=11)  # Convertir a formato legible
-            _axes[_idx].set_xlabel(factor.replace('_', ' ').title())
-            _axes[_idx].set_ylabel('Cantidad Disponible Promedio')
-            _axes[_idx].set_xticks(range(len(factor_data)))  # Crear etiquetas legibles
-            _axes[_idx].set_xticklabels(labels)
-            _axes[_idx].grid(True, alpha=0.3, axis='y')
-            for _i, _v in enumerate(factor_data.values):
-                _axes[_idx].text(_i, _v, f'{_v:.1f}', ha='center', va='bottom', fontweight='bold')
-        plt.tight_layout()
-        plt.show()
-        print('ANÁLISIS ESTADÍSTICO - IMPACTO DE FACTORES EXTERNOS')
-        for factor in available_factors:
-            print(f"\n{factor.replace('_', ' ').title()}:")
-            factor_stats = df.groupby(factor)['quantity_available'].agg(['mean', 'std', 'count'])
-            print(factor_stats)
-    else:
-        print('No se encontraron factores estacionales o columna de cantidad disponible.')  # Añadir valores sobre las barras  # Análisis estadístico
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 11. Análisis de Costos y Valor del Inventario
+    ## 10. Análisis de Costos y Valor del Inventario
 
     Examinamos la estructura de costos y el valor total del inventario, identificando productos de alto valor.
     """)
@@ -516,10 +543,22 @@ def _(df, plt):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### **Analisis financiero y de costos**
+    1. Distribución de Costos Unitarios: El histograma de Costo Unitario es multimodal (varios picos) y muestra una clara concentración de productos con un costo bajo (cercano a $\text{\$0.50}$ y $\text{\$0.60}$). Esto sugiere que los costos son categorizados o asignados en niveles fijos (similar a lo observado con los niveles de stock).
+    2. Distribución del Valor Total: La distribución del Valor Total del Inventario está fuertemente sesgada a la derecha, indicando que la gran mayoría de los registros tienen un valor bajo, pero unos pocos artículos (los de mayor existencia o costo) concentran la mayor parte del valor total (el máximo supera los $\text{\$5000}$).
+    3. Concentración del Valor (Pareto): El gráfico Top 10 Productos por Valor Total muestra que unos pocos productos (como 'Barra Proteica Frutos' y 'Barra Grande Miel') representan una parte desproporcionada del valor financiero total del inventario (Principio de Pareto). Esto es clave para el control de inventario (clasificación ABC).
+    4. Relación Costo vs. Cantidad Disponible: El scatter plot muestra que los costos unitarios son discretos, pero no existe una relación lineal clara entre el Costo Unitario y la Cantidad Disponible. El inventario más grande se encuentra tanto en productos de bajo como de alto costo.
+    """)
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 12. Análisis de Niveles de Stock y Reabastecimiento
+    ## 11. Análisis de Niveles de Stock y Reabastecimiento
 
     Evaluación de los niveles de stock en relación con los puntos de reorden y niveles óptimos establecidos.
     """)
@@ -587,61 +626,10 @@ def _(df, plt):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 13. Análisis de Proveedores
-
-    Evaluación del desempeño y distribución de proveedores en el sistema de inventario.
-    """)
-    return
-
-
-@app.cell
-def _(df, plt):
-    # Análisis de proveedores
-    if 'supplier_name' in df.columns:
-        _fig, _axes = plt.subplots(2, 2, figsize=(16, 10))
-        supplier_counts = df['supplier_name'].value_counts().head(15)
-        _axes[0, 0].barh(supplier_counts.index, supplier_counts.values, color='teal')  # Distribución de proveedores
-        _axes[0, 0].set_title('Top 15 Proveedores por Cantidad de Registros', fontweight='bold')
-        _axes[0, 0].set_xlabel('Cantidad de Registros')
-        _axes[0, 0].grid(True, alpha=0.3, axis='x')
-        if 'quantity_on_hand' in df.columns:
-            supplier_stock = df.groupby('supplier_name')['quantity_on_hand'].mean().sort_values(ascending=False).head(15)
-            _axes[0, 1].barh(supplier_stock.index, supplier_stock.values, color='coral')
-            _axes[0, 1].set_title('Top 15 Proveedores por Stock Promedio', fontweight='bold')  # Stock promedio por proveedor
-            _axes[0, 1].set_xlabel('Cantidad Promedio en Mano')
-            _axes[0, 1].grid(True, alpha=0.3, axis='x')
-        if 'prioridad_proveedor' in df.columns:
-            priority_dist = df['prioridad_proveedor'].value_counts().sort_index()
-            _axes[1, 0].bar(priority_dist.index, priority_dist.values, color='steelblue')
-            _axes[1, 0].set_title('Distribución por Prioridad de Proveedor', fontweight='bold')
-            _axes[1, 0].set_xlabel('Nivel de Prioridad')
-            _axes[1, 0].set_ylabel('Cantidad de Registros')  # Prioridad de proveedores
-            _axes[1, 0].grid(True, alpha=0.3, axis='y')
-        if 'total_value' in df.columns:
-            supplier_value = df.groupby('supplier_name')['total_value'].sum().sort_values(ascending=False).head(15)
-            _axes[1, 1].barh(supplier_value.index, supplier_value.values, color='mediumseagreen')
-            _axes[1, 1].set_title('Top 15 Proveedores por Valor Total del Inventario', fontweight='bold')
-            _axes[1, 1].set_xlabel('Valor Total ($)')
-            _axes[1, 1].grid(True, alpha=0.3, axis='x')
-        plt.tight_layout()
-        plt.show()  # Valor total por proveedor
-        print('RESUMEN DE PROVEEDORES')
-        print(f"\nTotal de proveedores únicos: {df['supplier_name'].nunique()}")
-        if 'prioridad_proveedor' in df.columns:
-            print('\nDistribución por prioridad:')
-            print(df['prioridad_proveedor'].value_counts().sort_index())
-    else:
-        print("No se encontró la columna 'supplier_name'.")  # Resumen de proveedores
-    return
-
-
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Análisis de Estabilidad y Secuencialidad del Dataset
+    ## 12. Análisis de Estabilidad y Secuencialidad del Dataset
 
         Visualizaciones para verificar que el dataset es adecuado para modelado de series temporales:
         - estabilidad (rolling mean/std),
@@ -740,10 +728,24 @@ def _(df, mo, pd, plt, sns):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### **Análisis de los gráficos**
+
+    - Estabilidad Temporal y Tendencia: El gráfico de Estabilidad Temporal con la media móvil ($\text{Rolling Mean}$) confirma que la serie es no estacionaria debido a la fuerte tendencia creciente de la media diaria (vista en la fase anterior).
+        - El modelo GRU debe ser diseñado para manejar esta tendencia (por ejemplo, utilizando las series de tiempo en su forma de diferencias o incluyendo la tendencia como feature).
+    - Autocorrelación (ACF):
+        - La función de Autocorrelación (ACF) muestra una correlación positiva y lenta que decae gradualmente (se mantiene por encima de los límites de confianza incluso después de muchos lags). Esto es una característica típica de una serie de tiempo no estacionaria y con tendencia.
+        - Implicación: La fuerte autocorrelación indica que el valor actual del stock está altamente influenciado por los valores de días o semanas anteriores. Esto justifica el uso de una Red Recurrente (como GRU), ya que está diseñada para capturar estas dependencias de largo plazo.
+    """)
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 14. Conclusiones y Hallazgos Principales
+    ## 13. Conclusiones y Hallazgos Principales
 
     Resumen ejecutivo de los principales insights obtenidos durante el análisis exploratorio.
     """)
@@ -801,7 +803,6 @@ def _(categoricas, df, numericas):
     if 'es_feriado' in df.columns:
         holidays = (df['es_feriado'] == True).sum()
         print(f'   - Registros en días feriados: {holidays:,} ({holidays / len(df) * 100:.1f}%)')
-
     return
 
 

@@ -234,7 +234,7 @@ def _(
 
         INPUT_SHAPE = (N_STEPS, N_FEATURES)
 
-        print(f"✓ Secuencias creadas:")
+        print(f" Secuencias creadas:")
         print(f"  - X_train: {X_train.shape}")
         print(f"  - X_val: {X_val.shape}")
         print(f"  - X_test: {X_test.shape}")
@@ -280,7 +280,7 @@ def _(itertools, json):
     values = param_grid.values()
     param_combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-    print(f"✓ Espacio de búsqueda definido:")
+    print(f" Espacio de búsqueda definido:")
     print(f"  - Total de combinaciones: {len(param_combinations)}")
     print(f"\n Ejemplo de combinación:")
     print(json.dumps(param_combinations[0], indent=2))
@@ -339,7 +339,7 @@ def _(Adam, Dense, Dropout, GRU, INPUT_SHAPE, LSTM, Sequential):
 
         return model
 
-    print("✓ Función build_model() definida correctamente.")
+    print(" Función build_model() definida correctamente.")
     return (build_model,)
 
 
@@ -604,7 +604,7 @@ def _(mlflow, plt, results_df_sorted, sns):
                 'best_overall_val_loss': float(results_df_sorted.iloc[0]['best_val_loss']),
                 'best_overall_val_mae': float(results_df_sorted.iloc[0]['best_val_mae'])
             })
-        print("✓ Gráficos de análisis logueados en MLflow")
+        print(" Gráficos de análisis logueados en MLflow")
     except Exception as e:
         print(f"  Advertencia al loguear en MLflow: {e}")
 
@@ -919,7 +919,7 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
     - **RMSE mejoró en {mejora_rmse:.2f}%:** El error general bajó de {baseline_rmse:.2f} a {final_rmse:.2f} unidades.
     - **R² {'mejoró' if mejora_r2 > 0 else 'se mantuvo similar'}:** El modelo ahora explica {final_r2*100:.2f}% de la varianza (vs {baseline_r2*100:.2f}% anterior).
 
-    **Conclusión:** {' **¡Éxito!** El Grid Search encontró una configuración superior al modelo baseline.' if mejora_mae > 0 else '⚠️ El modelo baseline ya era muy bueno. Considera ampliar el espacio de búsqueda.'}
+    **Conclusión:** {' **¡Éxito!** El Grid Search encontró una configuración superior al modelo baseline.' if mejora_mae > 0 else ' El modelo baseline ya era muy bueno. Considera ampliar el espacio de búsqueda.'}
     ''' if mejora_mae > 0 else f'''
      **Nota:** El modelo baseline (Fase 2) sigue siendo competitivo. Esto puede significar que:
     1. Los hiperparámetros iniciales ya estaban bien elegidos
@@ -980,7 +980,7 @@ def _(final_mae, final_r2, final_rmse, mo, pd, plt):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## 12. Conclusiones y Recomendaciones
+    ## 12. Conclusiones
 
     ###  Logros de la Fase 3:
 
@@ -988,31 +988,6 @@ def _(mo):
     2. **Optimización Documentada**: Todos los experimentos quedaron registrados en MLflow para trazabilidad
     3. **Modelo Mejorado**: Encontramos la configuración óptima que maximiza la precisión de predicción
     4. **Análisis Exhaustivo**: Identificamos patrones sobre qué hiperparámetros tienen mayor impacto
-
-    ### Insights Descubiertos:
-
-    - **Tipo de Capa**: {GRU/LSTM} demostró mejor rendimiento para este problema
-    - **Tamaño Óptimo**: {X} unidades balancean capacidad y generalización
-    - **Regularización**: Un dropout de {X}% previene efectivamente el overfitting
-    - **Velocidad de Aprendizaje**: {X} permite convergencia estable
-
-    ### Próximos Pasos Recomendados:
-
-    1. **Ensemble Methods**: Combinar los top 5 modelos para predicciones más robustas
-    2. **Optimización Bayesiana**: Explorar métodos más eficientes que Grid Search
-    3. **Feature Engineering Avanzado**: Incorporar datos externos (días festivos, promociones)
-    4. **Despliegue en Producción**: Crear API REST para servir predicciones en tiempo real
-    5. **Monitoreo Continuo**: Implementar MLflow Model Registry para gestión de versiones
-
-    ### Recursos para Profundizar:
-
-    - [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
-    - [Keras Tuner](https://keras.io/keras_tuner/) (alternativa a Grid Search manual)
-    - [Optuna](https://optuna.org/) (optimización bayesiana)
-
-    ---
-
-    ** Práctica completada exitosamente**
     """)
     return
 
