@@ -8,8 +8,17 @@ import pandas as pd
 import os
 import numpy as np
 from paths import resolve_file
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite a todos (para la práctica está bien)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Inicializar servicio LLM
 try:
