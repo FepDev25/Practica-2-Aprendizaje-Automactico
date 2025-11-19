@@ -1,5 +1,0 @@
-Frontned:
-    Metodo para hacer la prediccion por codigo de producto mas fecha
-    Si no hay codigo, hace prediccion de todos los productos
-    Llenar la tabla con los datos en una tabla
-    Se envia al LLM para que formatee la salida y generar soluciones
