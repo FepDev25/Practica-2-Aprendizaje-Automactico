@@ -72,14 +72,14 @@
         </div>
       </div>
 
-      <button class="btn-primary" (click)="getPedict(fecha, nombre)">
-        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <button class="btn-primary" (click)="getPedict(fecha, nombre)" [disabled]="cargandoPrediccion">
+        <svg *ngIf="!cargandoPrediccion" class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
-        Predecir Stock Ahora
+        <div *ngIf="cargandoPrediccion" class="spinner"></div>
+        {{ cargandoPrediccion ? 'Procesando...' : 'Predecir Stock Ahora' }}
       </button>
 
-      <!-- Resultado de predicción mejorado -->
       <div *ngIf="prediccionResultado" class="prediction-box">
         <div class="prediction-header">
           <svg class="success-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -170,11 +170,12 @@
           />
         </div>
 
-        <button class="btn-secondary" (click)="generarReporte()">
-          <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="btn-secondary" (click)="generarReporte()" [disabled]="cargandoReporte">
+          <svg *ngIf="!cargandoReporte" class="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
-          Generar Reporte Completo
+          <div *ngIf="cargandoReporte" class="spinner"></div>
+          {{ cargandoReporte ? 'Generando...' : 'Generar Reporte Completo' }}
         </button>
       </div>
 

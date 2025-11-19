@@ -16,6 +16,9 @@ export class SupermercadoComponent implements OnInit {
   nombre: string = '';
   fechaReporte: string = '';
   reporte: any[] = [];
+  
+  cargandoPrediccion: boolean = false;
+  cargandoReporte: boolean = false;
 
   constructor(private service: SupermercadoService) { }
 
@@ -27,19 +30,43 @@ export class SupermercadoComponent implements OnInit {
       return;
     }
 
-    this.service.getPedriccion(fecha, nombre).subscribe(data => {
-      console.log('Predicción recibida:', data);
-      this.prediccionResultado = data;
+    this.cargandoPrediccion = true;
+    
+    this.service.getPedriccion(fecha, nombre).subscribe({
+      next: (data) => {
+        console.log('Predicción recibida:', data);
+        this.prediccionResultado = data;
+        this.cargandoPrediccion = false;
+      },
+      error: (error) => {
+        console.error('Error en predicción:', error);
+        alert('Error al obtener la predicción. Por favor intente nuevamente.');
+        this.cargandoPrediccion = false;
+      }
     });
   }
 
   generarReporte() {
-    this.service.getReportePorFecha(this.fechaReporte).subscribe(data => {
-      console.log('Reporte recibido:', data);
+    if (!this.fechaReporte) {
+      alert('Debe seleccionar una fecha para el reporte');
+      return;
+    }
 
-      const resp: any = data;
-      this.reporte = resp.predictions ?? [];
-      this.mensajeResumen = resp.mensaje_resumen;
+    this.cargandoReporte = true;
+    
+    this.service.getReportePorFecha(this.fechaReporte).subscribe({
+      next: (data) => {
+        console.log('Reporte recibido:', data);
+        const resp: any = data;
+        this.reporte = resp.predictions ?? [];
+        this.mensajeResumen = resp.mensaje_resumen;
+        this.cargandoReporte = false;
+      },
+      error: (error) => {
+        console.error('Error al generar reporte:', error);
+        alert('Error al generar el reporte. Por favor intente nuevamente.');
+        this.cargandoReporte = false;
+      }
     });
   }
 
@@ -51,14 +78,29 @@ export class SupermercadoComponent implements OnInit {
     input.onchange = () => {
       const file = input.files?.[0];
       if (file) {
-        this.service.subirCsv(file).subscribe(resp => {
-          console.log('CSV subido:', resp);
-          alert('CSV subido correctamente');
+        this.service.subirCsv(file).subscribe({
+          next: (resp) => {
+            console.log('CSV subido:', resp);
+            alert('CSV subido correctamente');
+            this.service.reentrenarModelo().subscribe({
+              next: (res) => {
+                console.log('Modelo reentrenado:', res);
+                alert('Modelo reentrenado correctamente');
+              },
+              error: (error) => {
+                console.error('Error al reentrenar el modelo:', error);
+                alert('Error al reentrenar el modelo. Por favor intente nuevamente.');
+              }
+            });
+          },
+          error: (error) => {
+            console.error('Error al subir CSV:', error);
+            alert('Error al subir el archivo CSV. Por favor intente nuevamente.');
+          }
         });
       }
     };
 
     input.click();
   }
-
 }
