@@ -158,10 +158,14 @@ def predict(fecha: str):
         if features is not None and np.any(features):  # validar que exista registro
             pred = modelo.predecir(features)
             nombre = buscar_nombre_por_sku(prod)
+            minimum_stock = obtener_minimum_stock_level(prod) or 20.0
+            
             resultados.append({
                 "sku": prod,
                 "nombre": nombre,
-                "prediction": float(pred)
+                "prediccion": float(pred),
+                "prediction": float(pred),  # mantener compatibilidad
+                "minimum_stock": minimum_stock
             })
     
     # Generar mensaje resumen con LLM
@@ -169,15 +173,41 @@ def predict(fecha: str):
     if llm_service and resultados:
         try:
             # Ordenar por predicción (menor a mayor para destacar críticos)
-            resultados_ordenados = sorted(resultados, key=lambda x: x['prediction'])
+            resultados_ordenados = sorted(resultados, key=lambda x: x['prediccion'])
+            
+            # Clasificar productos por nivel de stock
+            stock_critico = [r for r in resultados if r['prediccion'] < r['minimum_stock']]
+            stock_precaucion = [r for r in resultados if r['minimum_stock'] <= r['prediccion'] < r['minimum_stock'] * 1.5]
+            stock_adecuado = [r for r in resultados if r['prediccion'] >= r['minimum_stock'] * 1.5]
+            
+            # Calcular estadísticas
+            predicciones_valores = [r['prediccion'] for r in resultados]
+            min_pred = min(predicciones_valores)
+            max_pred = max(predicciones_valores)
+            
+            producto_min = next(r for r in resultados if r['prediccion'] == min_pred)
+            producto_max = next(r for r in resultados if r['prediccion'] == max_pred)
+            
+            estadisticas = {
+                'promedio': sum(predicciones_valores) / len(predicciones_valores),
+                'minimo': min_pred,
+                'maximo': max_pred,
+                'producto_minimo': producto_min['nombre'],
+                'producto_maximo': producto_max['nombre']
+            }
             
             mensaje_resumen = llm_service.generar_mensaje_multiple(
                 fecha=fecha,
                 total_productos=len(resultados),
-                predicciones_destacadas=resultados_ordenados[:10]  # Top 10 más críticos
+                predicciones_destacadas=resultados_ordenados,
+                stock_critico=stock_critico,
+                stock_adecuado=stock_adecuado,
+                estadisticas=estadisticas
             )
         except Exception as llm_error:
             print(f"Error generando mensaje resumen: {llm_error}")
+            import traceback
+            traceback.print_exc()
     
     return {
         "fecha_prediccion": fecha,

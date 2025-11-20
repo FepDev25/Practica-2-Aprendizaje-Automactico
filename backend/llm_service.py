@@ -125,25 +125,44 @@ Respuesta:
         self,
         fecha: str,
         total_productos: int,
-        predicciones_destacadas: list
+        predicciones_destacadas: list,
+        stock_critico: list,
+        stock_adecuado: list,
+        estadisticas: dict
     ) -> str:
 
         template = """
-Eres un analista de inventarios de supermercado.
+Eres un analista experto de inventarios de supermercado. Genera un análisis profesional y completo.
 
-ANÁLISIS REALIZADO:
+DATOS DEL ANÁLISIS:
 - Fecha de predicción: {fecha}
 - Total de productos analizados: {total_productos}
-- Productos destacados:
+
+ESTADÍSTICAS GENERALES:
+- Stock promedio predicho: {promedio:.2f} unidades
+- Stock mínimo encontrado: {minimo:.2f} unidades (producto: {producto_minimo})
+- Stock máximo encontrado: {maximo:.2f} unidades (producto: {producto_maximo})
+- Productos con stock crítico: {total_critico}
+- Productos con stock adecuado: {total_adecuado}
+
+PRODUCTOS CON STOCK CRÍTICO (requieren atención inmediata):
+{productos_criticos}
+
+PRODUCTOS CON MEJOR NIVEL DE STOCK:
+{productos_adecuados}
+
+PRODUCTOS EN ORDEN DE CRITICIDAD:
 {productos_destacados}
 
 INSTRUCCIONES:
-1. Genera un resumen ejecutivo breve (3-4 oraciones)
-2. Menciona el estado general del inventario
-3. Destaca productos con stock crítico (< 20 unidades)
-4. Da una recomendación general
+1. Genera un análisis ejecutivo profesional (4-6 oraciones)
+2. Interpreta las estadísticas y proporciona contexto
+3. Identifica claramente productos en riesgo de desabastecimiento
+4. Menciona productos con buen nivel de stock
+5. Da recomendaciones específicas y priorizadas para gestión de inventario
+6. Usa un tono profesional pero claro
 
-Respuesta:
+Análisis:
 """
         
         try:
@@ -152,20 +171,42 @@ Respuesta:
             
             # Formatear productos destacados
             productos_str = "\n".join([
-                f"  • {p['nombre']}: {p['prediccion']:.2f} unidades"
-                for p in predicciones_destacadas[:5]  # Top 5
+                f"  • {p['nombre']} (SKU: {p['sku']}): {p['prediccion']:.2f} unidades"
+                for p in predicciones_destacadas[:10]
             ])
+            
+            # Formatear productos críticos
+            criticos_str = "\n".join([
+                f"  • {p['nombre']} (SKU: {p['sku']}): {p['prediccion']:.2f} unidades ⚠️"
+                for p in stock_critico[:5]
+            ]) if stock_critico else "  • Ninguno"
+            
+            # Formatear productos con buen stock
+            adecuados_str = "\n".join([
+                f"  • {p['nombre']} (SKU: {p['sku']}): {p['prediccion']:.2f} unidades ✓"
+                for p in stock_adecuado[:5]
+            ]) if stock_adecuado else "  • Ninguno"
             
             mensaje = chain.invoke({
                 "fecha": fecha,
                 "total_productos": total_productos,
-                "productos_destacados": productos_str
+                "promedio": estadisticas['promedio'],
+                "minimo": estadisticas['minimo'],
+                "maximo": estadisticas['maximo'],
+                "producto_minimo": estadisticas['producto_minimo'],
+                "producto_maximo": estadisticas['producto_maximo'],
+                "total_critico": len(stock_critico),
+                "total_adecuado": len(stock_adecuado),
+                "productos_destacados": productos_str,
+                "productos_criticos": criticos_str,
+                "productos_adecuados": adecuados_str
             })
             
             return mensaje.strip()
         
         except Exception as e:
-            return self._mensaje_fallback_multiple(total_productos, fecha)
+            print(f"Error en generar_mensaje_multiple: {e}")
+            return self._mensaje_fallback_multiple(total_productos, fecha, predicciones_destacadas)
     
     def _mensaje_fallback(self, nombre: str, prediccion: float, fecha: str, minimum_stock_level: float = 20.0) -> str:
         if prediccion < minimum_stock_level:
@@ -179,7 +220,25 @@ Respuesta:
             f"Nivel de stock: {nivel} (mínimo requerido: {minimum_stock_level:.0f} unidades)."
         )
     
-    def _mensaje_fallback_multiple(self, total: int, fecha: str) -> str:
+    def _mensaje_fallback_multiple(self, total: int, fecha: str, predicciones: list = None) -> str:
+        if predicciones and len(predicciones) > 0:
+            # Calcular estadísticas básicas
+            valores = [p['prediccion'] for p in predicciones]
+            promedio = sum(valores) / len(valores)
+            criticos = [p for p in predicciones if p['prediccion'] < 50]
+            
+            msg = f"Análisis de inventario para {fecha}:\n"
+            msg += f"• Total de productos: {total}\n"
+            msg += f"• Stock promedio predicho: {promedio:.2f} unidades\n"
+            msg += f"• Productos con stock crítico (<50 unidades): {len(criticos)}\n"
+            
+            if criticos:
+                msg += f"\nProductos que requieren atención:\n"
+                for p in criticos[:3]:
+                    msg += f"  - {p['nombre']}: {p['prediccion']:.2f} unidades\n"
+            
+            return msg
+        
         return (
             f"Se completó el análisis de {total} productos para la fecha {fecha}. "
             f"Revise los resultados detallados para más información."
