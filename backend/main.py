@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
 from pydantic import BaseModel
 from datetime import date
-from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku
+from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku,obtener_minimum_stock_level
 from llm_service import get_llm_service
 import pandas as pd
 import os
@@ -64,6 +64,9 @@ def predict(fecha: str, nombre: str):
         # Obtener nombre completo del producto
         nombre_completo = buscar_nombre_por_sku(sku)
         
+        # Obtener minimum_stock_level del producto
+        minimum_stock = obtener_minimum_stock_level(sku) or 20.0
+        
         # Generar mensaje con LLM
         mensaje_llm = None
         if llm_service:
@@ -72,7 +75,8 @@ def predict(fecha: str, nombre: str):
                     nombre_producto=nombre_completo,
                     sku=sku,
                     fecha=fecha,
-                    prediccion=float(pred)
+                    prediccion=float(pred),
+                    minimum_stock_level=minimum_stock
                 )
             except Exception as llm_error:
                 print(f"Error generando mensaje LLM: {llm_error}")
@@ -113,6 +117,9 @@ def predict(fecha: str, id: int):
         
         nombre_producto = buscar_nombre_por_sku(sku)
         
+        # Obtener minimum_stock_level del producto
+        minimum_stock = obtener_minimum_stock_level(sku) or 20.0
+        
         mensaje_llm = None
         if llm_service:
             try:
@@ -120,7 +127,8 @@ def predict(fecha: str, id: int):
                     nombre_producto=nombre_producto,
                     sku=sku,
                     fecha=fecha,
-                    prediccion=float(pred)
+                    prediccion=float(pred),
+                    minimum_stock_level=minimum_stock
                 )
             except Exception as llm_error:
                 print(f"Error generando mensaje LLM: {llm_error}")

@@ -28,6 +28,12 @@ def buscar_nombre_por_sku(product_sku: str) -> str | dict:
         return {"mensaje": f"No se encontró el product_sku '{product_sku}'"}
     return fila["product_name"].iloc[0]
 
+def obtener_minimum_stock_level(product_sku: str) -> float | None:
+    fila = DF_PRODUCTOS[DF_PRODUCTOS["product_sku"] == product_sku]
+    if fila.empty:
+        return None
+    return float(fila["minimum_stock_level"].iloc[0])
+
 def buscar_producto_por_id(product_id: int) -> str | dict:
     fila = DF_PRODUCTOS[DF_PRODUCTOS["product_id"] == product_id]
     if fila.empty:

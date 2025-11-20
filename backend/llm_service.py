@@ -70,15 +70,16 @@ INFORMACIÓN DE LA PREDICCIÓN:
 - SKU: {sku}
 - Fecha de predicción: {fecha}
 - Stock predicho: {prediccion} unidades
+- Nivel mínimo de stock: {minimum_stock_level} unidades
 {contexto_adicional}
 
 INSTRUCCIONES:
 1. Genera un mensaje amigable y profesional (máximo 3-4 oraciones)
-2. Interpreta la predicción:
-- Si es < 20 unidades: advierte sobre stock bajo
-- Si está entre 20-100: indica nivel normal
-- Si es > 100: menciona stock abundante
-3. Da una recomendación breve y accionable
+2. Interpreta la predicción comparando con el nivel mínimo de stock:
+   - Si el stock predicho está por debajo del nivel mínimo: advierte sobre stock crítico
+   - Si está cerca del nivel mínimo (entre mínimo y 1.5x mínimo): indica precaución
+   - Si está por encima de 1.5x el nivel mínimo: indica nivel adecuado o abundante
+3. Da una recomendación breve y accionable basada en esta comparación
 4. Usa un tono profesional pero cercano
 
 Respuesta:
@@ -97,6 +98,7 @@ Respuesta:
         sku: str,
         fecha: str,
         prediccion: float,
+        minimum_stock_level: float = 20.0,
         contexto_adicional: str = ""
     ) -> str:
         try:
@@ -109,6 +111,7 @@ Respuesta:
                 "sku": sku,
                 "fecha": fecha,
                 "prediccion": prediccion_formateada,
+                "minimum_stock_level": minimum_stock_level,
                 "contexto_adicional": contexto_adicional or ""
             })
             
@@ -116,7 +119,7 @@ Respuesta:
         
         except Exception as e:
             # Fallback en caso de error del LLM
-            return self._mensaje_fallback(nombre_producto, prediccion, fecha)
+            return self._mensaje_fallback(nombre_producto, prediccion, fecha, minimum_stock_level)
     
     def generar_mensaje_multiple(
         self,
@@ -164,11 +167,16 @@ Respuesta:
         except Exception as e:
             return self._mensaje_fallback_multiple(total_productos, fecha)
     
-    def _mensaje_fallback(self, nombre: str, prediccion: float, fecha: str) -> str:
-        nivel = "bajo" if prediccion < 20 else "normal" if prediccion < 100 else "alto"
+    def _mensaje_fallback(self, nombre: str, prediccion: float, fecha: str, minimum_stock_level: float = 20.0) -> str:
+        if prediccion < minimum_stock_level:
+            nivel = "crítico (por debajo del mínimo)"
+        elif prediccion < minimum_stock_level * 1.5:
+            nivel = "bajo (cerca del mínimo)"
+        else:
+            nivel = "adecuado"
         return (
             f"Predicción para {nombre} en fecha {fecha}: {prediccion:.2f} unidades. "
-            f"Nivel de stock: {nivel}."
+            f"Nivel de stock: {nivel} (mínimo requerido: {minimum_stock_level:.0f} unidades)."
         )
     
     def _mensaje_fallback_multiple(self, total: int, fecha: str) -> str:
