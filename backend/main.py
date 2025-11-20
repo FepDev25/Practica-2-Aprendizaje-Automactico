@@ -14,7 +14,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite a todos (para la práctica está bien)
+    allow_origins=["*"],  # Permite a todos
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,7 +43,7 @@ async def info_modelo():
 def predict(fecha: str, nombre: str):
 
     try:
-        # 1. Obtener SKU desde el CSV
+        # Obtener SKU desde el CSV
         sku = buscar_producto_por_nombre(nombre)
         print(sku)
         if sku is None:
@@ -52,19 +52,19 @@ def predict(fecha: str, nombre: str):
                 detail=f"No se encontró ningún producto con nombre '{nombre}'"
             )
 
-        # 2. Preparar input del modelo
+        # Preparar input del modelo
         features = preparar_input_desde_dataset_procesado(
             sku=sku,
             fecha_override=fecha
         )
 
-        # 3. Realizar predicción
+        # Realizar predicción
         pred = modelo.predecir(features)
         
-        # 4. Obtener nombre completo del producto
+        # Obtener nombre completo del producto
         nombre_completo = buscar_nombre_por_sku(sku)
         
-        # 5. Generar mensaje amigable con LLM
+        # Generar mensaje con LLM
         mensaje_llm = None
         if llm_service:
             try:
@@ -96,7 +96,6 @@ def predict(fecha: str, nombre: str):
 def predict(fecha: str, id: int):
 
     try:
-        # 1. Obtener SKU desde el CSV
         sku = buscar_producto_por_id(id)
         
         if sku is None:
@@ -105,19 +104,15 @@ def predict(fecha: str, id: int):
                 detail=f"No se encontró ningún producto con id '{id}'"
             )
 
-        # 2. Preparar input del modelo
         features = preparar_input_desde_dataset_procesado(
             sku=sku,
             fecha_override=fecha
         )
 
-        # 3. Realizar predicción
         pred = modelo.predecir(features)
         
-        # 4. Obtener nombre del producto
         nombre_producto = buscar_nombre_por_sku(sku)
         
-        # 5. Generar mensaje amigable con LLM
         mensaje_llm = None
         if llm_service:
             try:
@@ -176,7 +171,6 @@ def predict(fecha: str):
         except Exception as llm_error:
             print(f"Error generando mensaje resumen: {llm_error}")
     
-    # lista de productos y sus predicciones 
     return {
         "fecha_prediccion": fecha,
         "total_productos": len(resultados),

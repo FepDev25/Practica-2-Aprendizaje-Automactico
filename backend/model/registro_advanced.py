@@ -23,18 +23,12 @@ def all_registers_priductos():
     return sku_unicos
 
 def buscar_nombre_por_sku(product_sku: str) -> str | dict:
-    """
-    Retorna el product_name asociado a un product_sku.
-    """
     fila = DF_PRODUCTOS[DF_PRODUCTOS["product_sku"] == product_sku]
     if fila.empty:
         return {"mensaje": f"No se encontró el product_sku '{product_sku}'"}
     return fila["product_name"].iloc[0]
 
 def buscar_producto_por_id(product_id: int) -> str | dict:
-    """
-    Retorna solo el product_sku del producto con el product_id dado.
-    """
     fila = DF_PRODUCTOS[DF_PRODUCTOS["product_id"] == product_id]
     if fila.empty:
         return {"mensaje": f"No se encontró el product_id {product_id}"}
@@ -42,10 +36,6 @@ def buscar_producto_por_id(product_id: int) -> str | dict:
     return fila["product_sku"].iloc[0]
 
 def buscar_producto_por_nombre(nombre: str) -> str | dict:
-    """
-    Retorna solo el product_sku de la primera coincidencia
-    por product_name (parcial e insensible a mayúsculas).
-    """
     coincidencias = DF_PRODUCTOS[DF_PRODUCTOS["product_name"].str.contains(nombre, case=False, na=False)]
     print(coincidencias)
     if coincidencias.empty:
@@ -54,32 +44,25 @@ def buscar_producto_por_nombre(nombre: str) -> str | dict:
     return coincidencias["product_sku"].iloc[0]
 
 def preparar_input_desde_dataset_procesado(sku, fecha_override=None):
-    """
-    Prepara el input para el modelo GRU.
-    - Filtra por SKU.
-    - Mantiene las columnas usadas en el entrenamiento.
-    - Escala usando scaler_X.
-    - Devuelve X con forma (1, 7, N_FEATURES).
-    """
     scaler_X = load(str(resolve_file("scaler_X.joblib")))
     n_steps = 7
 
-    # 1. Cargar dataset procesado
+    # Cargar dataset procesado
     df = pd.read_csv(str(resolve_file("dataset_processed_advanced.csv")))
 
-    # 2. Filtrar SKU
+    # Filtrar SKU
     df_sku = df[df["product_sku"] == sku].copy()
 
     if len(df_sku) < n_steps:
-        raise ValueError(f"SKU {sku} solo tiene {len(df_sku)} registros. Se requieren {n_steps}.")
+        raise ValueError(f"SKU {sku} solo tiene {len(df_sku)} registroSe requieren {n_steps}.")
 
-    # 3. Ordenar por fecha (cronológicamente)
+    # Ordenar por fecha (cronológicamente)
     df_sku = df_sku.sort_values(by=["anio", "mes", "dia_del_mes"])
 
-    # 4. Obtener últimos N días
+    # Obtener últimos N días
     df_last = df_sku.tail(n_steps).copy()
 
-    # 5. Si el usuario quiere una fecha nueva, reemplazar la última fila
+    # Si el usuario quiere una fecha nueva, reemplazar la última fila
     if fecha_override is not None:
         fecha = pd.to_datetime(fecha_override)
 
@@ -94,17 +77,17 @@ def preparar_input_desde_dataset_procesado(sku, fecha_override=None):
         # Reemplazar la última fila del dataset por esta nueva
         df_last.iloc[-1] = nueva_fila
 
-    # 6. Eliminar columnas no usadas
+    # Eliminar columnas no usadas
     cols_excluir = ["product_sku", "region_almacen"]
     df_last = df_last.drop(columns=[c for c in cols_excluir if c in df_last.columns])
 
-    # 7. Mantener solo las columnas usadas en entrenamiento
+    # Mantener solo las columnas usadas en entrenamiento
     df_last = df_last[scaler_X.feature_names_in_]
 
-    # 8. Escalar
+    # Escalar
     df_scaled = scaler_X.transform(df_last)
 
-    # 9. Volver a forma GRU (batch_size = 1)
+    # Volver a forma GRU (batch_size = 1)
     X_input = df_scaled.reshape(1, n_steps, df_scaled.shape[1])
     
     return X_input
@@ -132,7 +115,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     
     """
     
-    # ========== 1. CARGA Y PREPARACIÓN BASE ==========
+    # ========== CARGA Y PREPARACIÓN BASE ==========
     print("Cargando dataset...")
     ruta_csv_path = resolve_file(ruta_csv)
     df = pd.read_csv(ruta_csv_path)
@@ -156,7 +139,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     print(f"✓ Dataset ordenado por '{ID_PRODUCTO}' y '{FECHA_PRINCIPAL}'")
     
     
-    # ========== 2. FEATURE ENGINEERING: VARIABLES TEMPORALES ==========
+    # ========== FEATURE ENGINEERING: VARIABLES TEMPORALES ==========
     print("Creando variables temporales...")
     
     def get_season(month):
@@ -185,7 +168,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     print("Variables temporales creadas")
     
     
-    # ========== 3. FEATURE ENGINEERING: LAGS ==========
+    # ========== FEATURE ENGINEERING: LAGS ==========
     print("Creando variables lag...")
     
     df['lag_1'] = df.groupby(ID_PRODUCTO)[VAR_OBJETIVO].shift(1)
@@ -195,7 +178,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     print("Variables lag (1, 7, 30) creadas")
     
     
-    # ========== 4. FEATURE ENGINEERING: HISTÓRICAS Y ESTADÍSTICAS ==========
+    # ========== FEATURE ENGINEERING: HISTÓRICAS Y ESTADÍSTICAS ==========
     print("Creando medias móviles y estadísticas...")
     
     df['media_movil_7d'] = df.groupby(ID_PRODUCTO)[VAR_OBJETIVO].transform(
@@ -215,7 +198,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     print("Medias móviles y desviación estándar creadas")
     
     
-    # ========== 5. FEATURE ENGINEERING: VARIABLES SINTÉTICAS ==========
+    # ========== FEATURE ENGINEERING: VARIABLES SINTÉTICAS ==========
     print("Creando variables sintéticas...")
     
     # Variación diaria
@@ -252,7 +235,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     print("Variables sintéticas creadas")
     
     
-    # ========== 6. LIMPIEZA FINAL Y SELECCIÓN DE COLUMNAS ==========
+    # ========== LIMPIEZA FINAL Y SELECCIÓN DE COLUMNAS ==========
     print("Limpiando datos y preparando dataset final...")
     
     # Eliminar filas con NaN en lags principales
@@ -281,7 +264,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
     df_final = df_processed.drop(columns=cols_a_excluir, errors='ignore')
     
     
-    # ========== 7. GUARDADO (OPCIONAL) ==========
+    # ========== GUARDADO ==========
     if guardar:
         try:
             ruta_salida_path = resolve_file(ruta_salida)
@@ -291,7 +274,7 @@ def procesar_dataset_inventario(ruta_csv="dataset.csv",
             print(f"\n Error al guardar: {e}")
     
     
-    # ========== 8. RESUMEN FINAL ==========
+    # ========== RESUMEN ==========
     print("\n" + "="*60)
     print("RESUMEN DEL PROCESAMIENTO")
     print("="*60)
