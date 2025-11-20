@@ -118,21 +118,38 @@ def _(mo):
 @app.cell
 def _(MinMaxScaler, df_model):
     if not df_model.empty:
+        # 1. Target
         y = df_model[['quantity_available']]
+
+        # 2. Features
         X = df_model.drop(columns=['quantity_available'])
+
+        # --- NUEVO: arreglar columnas booleanas/categóricas ---
+        # Convertir booleanos a 0/1
+        bool_cols = X.select_dtypes(include=['bool']).columns
+        X[bool_cols] = X[bool_cols].astype(int)
+
+        # Eliminar columnas no numéricas (strings, fechas, etc.)
+        X = X.select_dtypes(include=['number'])
+
         N_FEATURES = X.shape[1]
 
+        # 3. Scalers
         scaler_y = MinMaxScaler(feature_range=(0, 1))
         scaler_X = MinMaxScaler(feature_range=(0, 1))
 
+        # 4. Transformación
         y_scaled = scaler_y.fit_transform(y)
         X_scaled = scaler_X.fit_transform(X)
 
-        print(f"✓ Datos escalados correctamente.")
-        print(f"  - Forma de X_scaled: {X_scaled.shape}")
-        print(f"  - Número de features: {N_FEATURES}")
+        print("Datos escalados a [0, 1].")
+        print(f"Forma de X_scaled: {X_scaled.shape}")
+        print(f"Forma de y_scaled: {y_scaled.shape}")
+        print(f"Número de features: {N_FEATURES}")
     else:
-        X_scaled, y_scaled, scaler_X, scaler_y, N_FEATURES = [None] * 5
+        print("Dataset vacío, no se puede escalar.")
+        X_scaled, y_scaled, scaler_X, scaler_y, N_FEATURES = [None]*5
+
     return N_FEATURES, X_scaled, scaler_y, y, y_scaled
 
 
