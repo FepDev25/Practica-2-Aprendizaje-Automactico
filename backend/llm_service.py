@@ -161,6 +161,7 @@ INSTRUCCIONES:
 4. Menciona productos con buen nivel de stock
 5. Da recomendaciones específicas y priorizadas para gestión de inventario
 6. Usa un tono profesional pero claro
+7. Quita código markdown
 
 Análisis:
 """
