@@ -124,27 +124,38 @@ def _(mo):
 @app.cell
 def _(MinMaxScaler, df_model):
     if not df_model.empty:
-        # 1. Definir el Target (y) y los Features (X)
-        y = df_model[['quantity_available']] # Mantener como DataFrame
+        # 1. Target
+        y = df_model[['quantity_available']]
+
+        # 2. Features
         X = df_model.drop(columns=['quantity_available'])
 
-        N_FEATURES = X.shape[1] # Guardamos el número de features
+        # --- NUEVO: arreglar columnas booleanas/categóricas ---
+        # Convertir booleanos a 0/1
+        bool_cols = X.select_dtypes(include=['bool']).columns
+        X[bool_cols] = X[bool_cols].astype(int)
 
-        # 2. Crear e instanciar los scalers
+        # Eliminar columnas no numéricas (strings, fechas, etc.)
+        X = X.select_dtypes(include=['number'])
+
+        N_FEATURES = X.shape[1]
+
+        # 3. Scalers
         scaler_y = MinMaxScaler(feature_range=(0, 1))
         scaler_X = MinMaxScaler(feature_range=(0, 1))
 
-        # 3. Ajustar y transformar los datos
+        # 4. Transformación
         y_scaled = scaler_y.fit_transform(y)
         X_scaled = scaler_X.fit_transform(X)
 
-        print(f"Datos escalados a [0, 1].")
+        print("Datos escalados a [0, 1].")
         print(f"Forma de X_scaled: {X_scaled.shape}")
         print(f"Forma de y_scaled: {y_scaled.shape}")
         print(f"Número de features: {N_FEATURES}")
     else:
         print("Dataset vacío, no se puede escalar.")
-        X_scaled, y_scaled, scaler_X, scaler_y, N_FEATURES = [None] * 5
+        X_scaled, y_scaled, scaler_X, scaler_y, N_FEATURES = [None]*5
+
     return N_FEATURES, X_scaled, scaler_X, scaler_y, y, y_scaled
 
 
@@ -703,15 +714,18 @@ def _(mo):
     return
 
 
-@app.cell(disabled=True)
+@app.cell
 def _(scaler_X, scaler_y):
     import joblib
 
-    # Guardamos los objetos que saben transformar los datos
-    joblib.dump(scaler_X, 'scaler_X.pkl')
-    joblib.dump(scaler_y, 'scaler_y.pkl')
+    # Guardar los scalers
+    joblib.dump(scaler_X, 'scaler_X.joblib')
+    joblib.dump(scaler_y, 'scaler_y.joblib')
 
-    print("¡Listo! Envía a tu compañero: best_model.keras, scaler_X.pkl y scaler_y.pkl")
+    print("Scalers guardados correctamente:")
+    print(" - scaler_X.joblib")
+    print(" - scaler_y.joblib")
+
     return
 
 

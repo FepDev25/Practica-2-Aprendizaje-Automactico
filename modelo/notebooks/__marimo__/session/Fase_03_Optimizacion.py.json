@@ -1,0 +1,286 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.17.7"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "4a9cd3938f14eb82d9cb287213e5cf99",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h1 id=\"fase-3-optimizacion-de-hiperparametros-con-grid-search\">Fase 3: Optimizaci\u00f3n de Hiperpar\u00e1metros con Grid Search</h1>\n<span class=\"paragraph\">En esta fase, realizaremos <strong>fine-tuning</strong> del modelo GRU utilizando <strong>Grid Search</strong>.\nEn la <strong>Fase 2</strong> entrenamos un modelo GRU con hiperpar\u00e1metros \"elegidos a ojo\".\nAhora vamos a ser m\u00e1s cient\u00edficos: probaremos <strong>108 combinaciones diferentes</strong>\nde configuraciones para encontrar la <strong>mejor</strong>.</span>\n<h2 id=\"objetivos\">Objetivos:</h2>\n<ol>\n<li>Definir un espacio de b\u00fasqueda de hiperpar\u00e1metros</li>\n<li>Implementar Grid Search manualmente para modelos Keras</li>\n<li>Entrenar m\u00faltiples modelos y comparar resultados</li>\n<li>Registrar todos los experimentos en MLflow</li>\n<li>Seleccionar el mejor modelo basado en m\u00e9tricas de validaci\u00f3n</li>\n</ol></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "09e3fb8b4690031f8921f6a8baa7e271",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"1-carga-de-datos-procesados\">1. Carga de Datos Procesados</h2>\n<ul>\n<li>Utilizamos el mismo dataset de la Fase 2.</li>\n<li>Las columnas no num\u00e9ricas causan errores en modelos de Machine Learning</li>\n<li>Validamos que los datos est\u00e9n disponibles antes de continuar</li>\n</ul></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "5271d59c3965b3d9174bb0d031a4805a",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"2-escalado-de-datos\">2. Escalado de Datos</h2>\n<span class=\"paragraph\">Normalizamos los datos entre 0 y 1.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "17b6ab203a00cf581022b3d2688faca9",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"3-division-cronologica-trainvalidationtest\">3. Divisi\u00f3n Cronol\u00f3gica (Train/Validation/Test)</h2>\n<span class=\"paragraph\"><strong>Mantenemos la misma divisi\u00f3n de la Fase 2 para comparabilidad:</strong></span>\n<ul>\n<li><strong>Train (80%):</strong> Datos hist\u00f3ricos para entrenamiento del modelo</li>\n<li><strong>Validation (10%):</strong> Conjunto para selecci\u00f3n de hiperpar\u00e1metros en Grid Search</li>\n<li><strong>Test (10%):</strong> Evaluaci\u00f3n final imparcial (nunca visto durante optimizaci\u00f3n)</li>\n</ul>\n<span class=\"paragraph\"><strong>\u00bfPor qu\u00e9 es crucial mantener la misma divisi\u00f3n?</strong></span>\n<ol>\n<li><strong>Comparabilidad:</strong> Permite comparar directamente Baseline vs Grid Search</li>\n<li><strong>Validez:</strong> El test set debe ser id\u00e9ntico en ambos experimentos</li>\n<li><strong>Integridad:</strong> Evita \"data leakage\" (filtraci\u00f3n de informaci\u00f3n)</li>\n</ol>\n<span class=\"paragraph\"><strong>Flujo de datos:</strong>\n<div class=\"language-ini codehilite\"><pre><span></span><code><span class=\"k\">[\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Train (80%) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500][Val(10%)][Test(10%)]</span>\n<span class=\"w\">                                  </span><span class=\"na\">\u2193           \u2193</span>\n<span class=\"w\">                          </span><span class=\"na\">Grid Search    Evaluaci\u00f3n</span>\n<span class=\"w\">                          </span><span class=\"na\">Optimizaci\u00f3n      Final</span>\n</code></pre></div></span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "6d3211303334bef4ec48f3d628b71d89",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"4-creacion-de-secuencias\">4. Creaci\u00f3n de Secuencias</h2>\n<span class=\"paragraph\">Convertimos los datos en secuencias temporales para el modelo GRU.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "c52678cb37d1134ff138efa837214679",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"5-definicion-del-espacio-de-hiperparametros\">5. Definici\u00f3n del Espacio de Hiperpar\u00e1metros</h2>\n<span class=\"paragraph\">Definimos los hiperpar\u00e1metros a explorar en nuestro Grid Search:</span>\n<table>\n<thead>\n<tr>\n<th>Hiperpar\u00e1metro</th>\n<th>Valores a Probar</th>\n<th>Descripci\u00f3n</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><strong>units</strong></td>\n<td>[32, 64, 128]</td>\n<td>Neuronas en la capa GRU</td>\n</tr>\n<tr>\n<td><strong>dropout</strong></td>\n<td>[0.1, 0.2, 0.3]</td>\n<td>Tasa de regularizaci\u00f3n</td>\n</tr>\n<tr>\n<td><strong>learning_rate</strong></td>\n<td>[0.001, 0.0005, 0.0001]</td>\n<td>Velocidad de aprendizaje</td>\n</tr>\n<tr>\n<td><strong>batch_size</strong></td>\n<td>[32, 64]</td>\n<td>Tama\u00f1o del lote</td>\n</tr>\n<tr>\n<td><strong>layer_type</strong></td>\n<td>['GRU', 'LSTM']</td>\n<td>Tipo de capa recurrente</td>\n</tr>\n</tbody>\n</table>\n<span class=\"paragraph\"><strong>Total de combinaciones:</strong> 3 \u00d7 3 \u00d7 3 \u00d7 2 \u00d7 2 = <strong>108 modelos</strong></span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "868ef06ccc597ac9a33086478918fa16",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"6-funcion-para-construir-modelos\">6. Funci\u00f3n para Construir Modelos</h2>\n<span class=\"paragraph\">Creamos una funci\u00f3n que construye un modelo GRU/LSTM con los hiperpar\u00e1metros especificados.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "46e7ababe3a8370c23e9b4303d59198d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"7-grid-search-manual-con-mlflow\">7. Grid Search Manual con MLflow</h2>\n<span class=\"paragraph\">Implementamos el Grid Search manualmente, entrenando cada combinaci\u00f3n\ny registrando los resultados en MLflow.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": "c6e828e45f67661e15784de3ab8c3f18",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"8-analisis-de-resultados-del-grid-search\">8. An\u00e1lisis de Resultados del Grid Search</h2>\n<span class=\"paragraph\">Analizamos y visualizamos los resultados de todas las combinaciones probadas.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "2af8e155acfdfa9108b80107c90cf209",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"9-visualizacion-de-resultados\">9. Visualizaci\u00f3n de Resultados</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "607410b5c18aac4c5c5af63c24f4e70c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"10-evaluacion-del-mejor-modelo-en-test-set\">10. Evaluaci\u00f3n del Mejor Modelo en Test Set</h2>\n<span class=\"paragraph\">Cargamos el mejor modelo y lo evaluamos en el conjunto de prueba (el \"examen final\").</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "aLJB",
+      "code_hash": "3b61fc06c2ea83df5873119d456b8bdf",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"11-comparacion-modelo-baseline-vs-mejor-modelo\">11. Comparaci\u00f3n: Modelo Baseline vs Mejor Modelo</h2>\n<span class=\"paragraph\">Comparamos el rendimiento del modelo original (Fase 2) con el mejor modelo encontrado en el Grid Search.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "xXTn",
+      "code_hash": "c037ed6c2166fbc47cb05125ee12095c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"12-conclusiones\">12. Conclusiones</h2>\n<h3 id=\"logros-de-la-fase-3\">Logros de la Fase 3:</h3>\n<ol>\n<li><strong>Grid Search Exitoso</strong>: Evaluamos 108 combinaciones de hiperpar\u00e1metros de forma sistem\u00e1tica</li>\n<li><strong>Optimizaci\u00f3n Documentada</strong>: Todos los experimentos quedaron registrados en MLflow para trazabilidad</li>\n<li><strong>Modelo Mejorado</strong>: Encontramos la configuraci\u00f3n \u00f3ptima que maximiza la precisi\u00f3n de predicci\u00f3n</li>\n<li><strong>An\u00e1lisis Exhaustivo</strong>: Identificamos patrones sobre qu\u00e9 hiperpar\u00e1metros tienen mayor impacto</li>\n</ol></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "AjVT",
+      "code_hash": "5312b2981b4458d6bce071aa5ee6e856",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"13-acceso-a-mlflow-ui\">13. Acceso a MLflow UI</h2>\n<span class=\"paragraph\">Para visualizar todos los experimentos y comparar modelos:</span>\n<div class=\"language-bash codehilite\"><pre><span></span><code><span class=\"c1\"># En tu terminal, desde la carpeta del proyecto:</span>\nmlflow<span class=\"w\"> </span>ui\n</code></pre></div>\n<span class=\"paragraph\">Luego abre en tu navegador: <code>http://127.0.0.1:5000</code></span>\n<h3 id=\"que-podras-ver-en-mlflow\">Qu\u00e9 podr\u00e1s ver en MLflow:</h3>\n<ul>\n<li><strong>Experiments</strong>: Lista de todos los 108+ experimentos ejecutados</li>\n<li><strong>Compare Runs</strong>: Comparaci\u00f3n visual de m\u00e9tricas entre modelos</li>\n<li><strong>Artifacts</strong>: Gr\u00e1ficos y modelos guardados</li>\n<li><strong>Parameters</strong>: Hiperpar\u00e1metros de cada experimento</li>\n<li><strong>Metrics</strong>: Curvas de aprendizaje y m\u00e9tricas finales</li>\n</ul></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "0a674c88e2c19906802d48085bb43449",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "b54e8433ea9350a175f92d15e4fd5258",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "07d0cf6e8de1a1621ed538c48c9a3bd8",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "1cd85d566fe98131970ef76fc6024250",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "4fabb5d8dd48f86cf0eb5a07328056b5",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "b30da57dafbb47d92a1835d0f17c1850",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "ed2c9e41370ea18ad780ea316e67153c",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "9ba0437d8756aeb9666bf4bd39e02556",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "d1a1a814c254cee35c20d4073740c8ee",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "7083441eb26b269ce102eb87ef869fff",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "74b9313cee28dbfe120e67b0d1a5bebb",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "32973b6b8377f1a73153c036363eb40b",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Pvdt",
+      "code_hash": "eb781bd99c5f5f068825bd8df7cec1c5",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZBYS",
+      "code_hash": "62ecab350b0af09f4a531f73f89bad5c",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "nHfw",
+      "code_hash": "f267329710644cf2fe41085a83c64024",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "pHFh",
+      "code_hash": "1d0db38904205bec4d6f6f6a1f6cec3e",
+      "outputs": [],
+      "console": []
+    }
+  ]
+}
