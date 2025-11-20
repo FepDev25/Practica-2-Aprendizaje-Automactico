@@ -187,9 +187,9 @@ def predict(fecha: str):
 
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...)):
-
-    DATASET_PATH = str(resolve_file("dataset.csv"))
-
+    
+    DATASET_PATH = "model/files/dataset.csv"
+    
     REQUIRED_COLUMNS = [
         "id","created_at","product_id","product_name","product_sku","supplier_id",
         "supplier_name","prioridad_proveedor","quantity_on_hand","quantity_reserved",
@@ -200,37 +200,28 @@ async def upload_csv(file: UploadFile = File(...)):
         "created_by_id","record_sequence_number","categoria_producto","subcategoria_producto",
         "anio","mes","vacaciones_o_no","es_feriado","temporada_alta"
     ]
-
-    REQUIRED_COLUMNS_NORMALIZED = [c.lower() for c in REQUIRED_COLUMNS]
-
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="El archivo debe ser .csv")
 
-    # Leer CSV
+    # Leer CSV entrante
     try:
-        df_new = pd.read_csv(file.file, header=0)
-
-        # Normalizar encabezados
-        df_new.columns = df_new.columns.str.strip().str.lower()
-
-        # Eliminar filas donde la cabecera aparece como registro
-        df_new = df_new[df_new.ne(df_new.columns).any(axis=1)]
-
+        df_new = pd.read_csv(file.file)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al leer CSV: {str(e)}")
 
     # Validar columnas
-    missing = set(REQUIRED_COLUMNS_NORMALIZED) - set(df_new.columns)
+    missing = set(REQUIRED_COLUMNS) - set(df_new.columns)
     if missing:
         raise HTTPException(
             status_code=400,
             detail=f"Columnas faltantes: {', '.join(missing)}"
         )
 
-    # Si existe dataset original
+    # Si existe dataset.csv → cargar
     if os.path.exists(DATASET_PATH):
         df_existing = pd.read_csv(DATASET_PATH)
 
+        # Validar que las columnas coincidan exactamente
         if list(df_existing.columns) != REQUIRED_COLUMNS:
             raise HTTPException(
                 status_code=500,
@@ -238,20 +229,21 @@ async def upload_csv(file: UploadFile = File(...)):
             )
 
     else:
+        # Si no existe, iniciarlo vacío con columnas correctas
         df_existing = pd.DataFrame(columns=REQUIRED_COLUMNS)
 
     rows_before = len(df_existing)
 
-    # Reordenar y restaurar nombres oficiales
-    df_new = df_new[REQUIRED_COLUMNS_NORMALIZED]
-    df_new.columns = REQUIRED_COLUMNS
+    # Ordenar columnas del CSV cargado según definición
+    df_new = df_new[REQUIRED_COLUMNS]
 
-    # Agregar al dataset
+    # Agregar nuevas filas al final del dataset
     df_final = pd.concat([df_existing, df_new], ignore_index=True)
 
+    # Guardar dataset actualizado
     df_final.to_csv(DATASET_PATH, index=False)
     procesar_dataset_inventario()
-
+    
     return {
         "message": "Nuevas filas agregadas correctamente al final del dataset.",
         "rows_before": rows_before,
