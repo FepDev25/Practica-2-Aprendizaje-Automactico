@@ -2,10 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { SupermercadoService } from '../supermercado.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MarkdownModule } from 'ngx-markdown';
 
 @Component({
   selector: 'app-supermercado',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownModule],
   templateUrl: './supermercado.component.html',
   styleUrls: ['./supermercado.component.scss']
 })
@@ -19,6 +20,7 @@ export class SupermercadoComponent implements OnInit {
   
   cargandoPrediccion: boolean = false;
   cargandoReporte: boolean = false;
+  mostrarAnalisis: boolean = false;
 
   constructor(private service: SupermercadoService) { }
 
@@ -53,6 +55,7 @@ export class SupermercadoComponent implements OnInit {
     }
 
     this.cargandoReporte = true;
+    this.mostrarAnalisis = false;
     
     this.service.getReportePorFecha(this.fechaReporte).subscribe({
       next: (data) => {
@@ -60,6 +63,13 @@ export class SupermercadoComponent implements OnInit {
         const resp: any = data;
         this.reporte = resp.predictions ?? [];
         this.mensajeResumen = resp.mensaje_resumen;
+        
+        // Debug: Verificar contenido completo
+        console.log('📊 Mensaje resumen (longitud):', this.mensajeResumen.length);
+        console.log('📊 Mensaje resumen (completo):', this.mensajeResumen);
+        console.log('📊 Últimos 200 caracteres:', this.mensajeResumen.slice(-200));
+        
+        this.mostrarAnalisis = true;
         this.cargandoReporte = false;
       },
       error: (error) => {
@@ -68,6 +78,11 @@ export class SupermercadoComponent implements OnInit {
         this.cargandoReporte = false;
       }
     });
+  }
+
+  cerrarAnalisis() {
+    this.mostrarAnalisis = false;
+    this.mensajeResumen = '';
   }
 
   subirCsv() {

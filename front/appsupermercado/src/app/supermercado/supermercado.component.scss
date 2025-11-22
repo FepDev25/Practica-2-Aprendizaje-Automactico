@@ -32,8 +32,9 @@ body {
 // Container principal
 .stock-container {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
   min-height: 100vh;
   padding: 60px 20px;
   animation: fadeIn 0.6s ease-out;
@@ -697,5 +698,257 @@ button {
 
   .result-value {
     font-size: 2rem !important;
+  }
+}
+
+// ========================================
+// ESTILOS PANEL DE ANÁLISIS EJECUTIVO
+// ========================================
+
+.analisis-panel {
+  background: $bg-white;
+  border-radius: 16px;
+  box-shadow: $shadow-xl;
+  margin: 30px auto;
+  max-width: 1200px;
+  overflow: visible;
+  animation: slideIn 0.4s ease-out;
+  width: 100%;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.analisis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+
+  h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .chars-count {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+
+  .btn-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &:hover {
+      background: rgba(255, 0, 0, 0.4);
+      transform: rotate(90deg);
+    }
+
+    &:active {
+      transform: rotate(90deg) scale(0.95);
+    }
+  }
+}
+
+.analisis-content {
+  padding: 32px;
+  max-height: none;
+  min-height: 200px;
+  overflow: visible;
+
+  // Si quieres limitar altura, usa esto en su lugar:
+  // max-height: 70vh;
+  // overflow-y: auto;
+  // overflow-x: hidden;
+
+  // Scroll personalizado
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 10px;
+
+    &:hover {
+      background: #a0aec0;
+    }
+  }
+}
+
+// ESTILOS DEL MARKDOWN
+.markdown-content {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.7;
+  color: #2d3748;
+
+  // Títulos en negrita
+  ::ng-deep strong {
+    display: block;
+    color: #1a202c;
+    font-weight: 700;
+    font-size: 1.35rem;
+    margin-top: 32px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+
+    &:first-child {
+      margin-top: 0;
+      font-size: 1.5rem;
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+  }
+
+  // Párrafos
+  ::ng-deep p {
+    margin: 12px 0;
+    color: #4a5568;
+    font-size: 1rem;
+  }
+
+  // Listas
+  ::ng-deep ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 16px 0;
+  }
+
+  ::ng-deep li {
+    padding: 14px 18px;
+    margin: 8px 0;
+    border-left: 4px solid #cbd5e0;
+    background: #f7fafc;
+    border-radius: 6px;
+    transition: all 0.25s ease;
+    font-size: 0.95rem;
+    position: relative;
+
+    &:hover {
+      border-left-color: #4299e1;
+      background: #edf2f7;
+      transform: translateX(6px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    // Colorear según el contenido
+    &:contains("CRÍTICO") {
+      border-left-color: #f56565;
+      background: #fff5f5;
+    }
+
+    &:contains("ADVERTENCIA") {
+      border-left-color: #ed8936;
+      background: #fffaf0;
+    }
+
+    &:contains("ADECUADO") {
+      border-left-color: #48bb78;
+      background: #f0fff4;
+    }
+  }
+
+  // SKUs y códigos
+  ::ng-deep code {
+    background: #edf2f7;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #2d3748;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-weight: 600;
+  }
+
+  // Números destacados
+  ::ng-deep strong:contains("unidades") {
+    font-weight: 600;
+    color: #2563eb;
+  }
+}
+
+.analisis-footer {
+  padding: 20px 32px;
+  background: #f7fafc;
+  border-top: 1px solid #e2e8f0;
+
+  .disclaimer {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #718096;
+    text-align: center;
+    line-height: 1.6;
+  }
+}
+
+// Responsive para análisis
+@media (max-width: 768px) {
+  .analisis-header {
+    padding: 20px 24px;
+
+    h2 {
+      font-size: 1.35rem;
+    }
+
+    .btn-close {
+      width: 36px;
+      height: 36px;
+      font-size: 1.2rem;
+    }
+  }
+
+  .analisis-content {
+    padding: 24px;
+    max-height: 70vh;
+  }
+
+  .markdown-content ::ng-deep li {
+    font-size: 0.9rem;
+    padding: 12px 14px;
+  }
+
+  .analisis-footer {
+    padding: 16px 24px;
+
+    .disclaimer {
+      font-size: 0.85rem;
+    }
   }
 }
