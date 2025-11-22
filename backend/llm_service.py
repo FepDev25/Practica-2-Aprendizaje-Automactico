@@ -59,6 +59,15 @@ class LLMPrediccionService:
             max_tokens=300, 
         )
     
+    def _crear_llm_conclusion(self):
+        """LLM específico para generar conclusiones más largas"""
+        return ChatVertexAI(
+            model=LLM_MODEL,
+            project=PROJECT_ID,
+            temperature=0.8,  # Más creativo para conclusiones
+            max_tokens=500,   # Más tokens para conclusión detallada
+        )
+    
     def _crear_chain(self):
         template = """
 Eres un asistente experto en gestión de inventarios de supermercado.
@@ -121,6 +130,94 @@ Respuesta:
             # Fallback en caso de error del LLM
             return self._mensaje_fallback(nombre_producto, prediccion, fecha, minimum_stock_level)
     
+    def _generar_conclusion_inteligente(
+        self,
+        total_productos: int,
+        num_criticos: int,
+        num_adecuados: int,
+        promedio: float,
+        minimo: float,
+        maximo: float,
+        producto_minimo: str,
+        producto_maximo: str,
+        productos_criticos: list
+    ) -> str:
+        """
+        Genera una conclusión personalizada usando el LLM basándose en los datos del análisis
+        """
+        try:
+            # Crear prompt para conclusión
+            nombres_criticos = [p.get('nombre', 'Sin nombre') for p in productos_criticos[:3]]
+            criticos_str = ", ".join(nombres_criticos) if nombres_criticos else "ninguno"
+            
+            porcentaje_criticos = (num_criticos / total_productos * 100) if total_productos > 0 else 0
+            
+            template = """
+Eres un analista experto en gestión de inventarios de supermercado.
+
+Basándote en el siguiente análisis de inventario, genera una conclusión profesional y recomendaciones accionables en formato de lista con viñetas (usando guiones -).
+
+DATOS DEL ANÁLISIS:
+- Total de productos analizados: {total_productos}
+- Productos en estado CRÍTICO: {num_criticos} ({porcentaje_criticos:.1f}%)
+- Productos con stock ADECUADO: {num_adecuados}
+- Stock promedio predicho: {promedio:.2f} unidades
+- Stock mínimo: {minimo:.2f} unidades (Producto: {producto_minimo})
+- Stock máximo: {maximo:.2f} unidades (Producto: {producto_maximo})
+- Productos más críticos: {criticos_str}
+
+INSTRUCCIONES:
+1. Evalúa la situación general del inventario (¿es crítica, moderada, estable?)
+2. Identifica las prioridades inmediatas basándote en el porcentaje de productos críticos
+3. Da 4-5 recomendaciones ESPECÍFICAS y accionables en formato de lista con guiones (-)
+4. Menciona los productos más críticos por nombre si es relevante
+5. Sugiere acciones concretas (no genéricas) para cada tipo de situación
+6. Mantén un tono profesional pero directo
+
+Genera SOLO la lista de recomendaciones (sin títulos adicionales):
+            """
+            
+            prompt = ChatPromptTemplate.from_template(template)
+            llm_conclusion = self._crear_llm_conclusion()
+            chain = prompt | llm_conclusion | StrOutputParser()
+            
+            conclusion = chain.invoke({
+                "total_productos": total_productos,
+                "num_criticos": num_criticos,
+                "num_adecuados": num_adecuados,
+                "porcentaje_criticos": porcentaje_criticos,
+                "promedio": promedio,
+                "minimo": minimo,
+                "maximo": maximo,
+                "producto_minimo": producto_minimo,
+                "producto_maximo": producto_maximo,
+                "criticos_str": criticos_str
+            })
+            
+            return conclusion.strip()
+            
+        except Exception as e:
+            print(f"⚠️ Error generando conclusión con LLM: {e}")
+            # Fallback a conclusión estática
+            return self._conclusion_fallback(num_criticos, num_adecuados, total_productos)
+    
+    def _conclusion_fallback(self, num_criticos: int, num_adecuados: int, total: int) -> str:
+        """Conclusión de respaldo si falla el LLM"""
+        porcentaje = (num_criticos / total * 100) if total > 0 else 0
+        
+        if porcentaje > 30:
+            urgencia = "ALTA PRIORIDAD"
+        elif porcentaje > 15:
+            urgencia = "PRIORIDAD MODERADA"
+        else:
+            urgencia = "SEGUIMIENTO ESTÁNDAR"
+        
+        return f"""- **Nivel de urgencia:** {urgencia} ({num_criticos} productos críticos de {total})
+- Priorizar reposición inmediata para productos marcados como CRÍTICOS
+- Implementar monitoreo diario para productos en ADVERTENCIA
+- Revisar tiempos de entrega con proveedores de productos críticos
+- Mantener políticas de stock de seguridad para productos de alta rotación"""
+
     def generar_mensaje_multiple(
         self,
         fecha: str,
@@ -203,15 +300,28 @@ Respuesta:
                 lines.append("- Ninguno")
 
             lines.append("")
-            # Conclusiones y recomendaciones
+            # Conclusiones y recomendaciones generadas por LLM
             lines.append("**Conclusión y Recomendaciones**")
-            lines.append("- Priorizar reposición para los productos marcados como CRÍTICOS. Revisar tiempos de entrega y proveedores.")
-            lines.append("- Para productos en ADVERTENCIA, habilitar monitoreo diario y preparar pedidos según tendencia de ventas.")
-            lines.append("- Mantener políticas de seguridad de stock para productos con alta variabilidad de demanda.")
-            lines.append("- Realizar una revisión detallada de 5-10 productos más críticos para identificar causas (promociones, rotación, errores de datos).")
+            
+            # Generar conclusión personalizada con LLM
+            conclusion_llm = self._generar_conclusion_inteligente(
+                total_productos=total_productos,
+                num_criticos=len(stock_critico),
+                num_adecuados=len(stock_adecuado),
+                promedio=promedio,
+                minimo=minimo,
+                maximo=maximo,
+                producto_minimo=producto_minimo,
+                producto_maximo=producto_maximo,
+                productos_criticos=stock_critico[:5]  # Top 5 críticos
+            )
+            
+            lines.append(conclusion_llm)
 
             mensaje = "\n".join(lines)
-            print(f"Mensaje generado (longitud: {len(mensaje)} caracteres)")
+            print(f"✅ Mensaje generado (longitud: {len(mensaje)} caracteres)")
+            print(f"📝 Primeros 100 chars: {mensaje[:100]}")
+            print(f"📝 Últimos 100 chars: {mensaje[-100:]}")
             return mensaje
 
         except Exception as e:
