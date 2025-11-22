@@ -130,83 +130,94 @@ Respuesta:
         stock_adecuado: list,
         estadisticas: dict
     ) -> str:
-
-        template = """
-Eres un analista experto de inventarios de supermercado. Genera un análisis profesional y completo.
-
-DATOS DEL ANÁLISIS:
-- Fecha de predicción: {fecha}
-- Total de productos analizados: {total_productos}
-
-ESTADÍSTICAS GENERALES:
-- Stock promedio predicho: {promedio:.2f} unidades
-- Stock mínimo encontrado: {minimo:.2f} unidades (producto: {producto_minimo})
-- Stock máximo encontrado: {maximo:.2f} unidades (producto: {producto_maximo})
-- Productos con stock crítico: {total_critico}
-- Productos con stock adecuado: {total_adecuado}
-
-PRODUCTOS CON STOCK CRÍTICO (requieren atención inmediata):
-{productos_criticos}
-
-PRODUCTOS CON MEJOR NIVEL DE STOCK:
-{productos_adecuados}
-
-PRODUCTOS EN ORDEN DE CRITICIDAD:
-{productos_destacados}
-
-INSTRUCCIONES:
-1. Genera un análisis ejecutivo profesional (4-6 oraciones)
-2. Interpreta las estadísticas y proporciona contexto
-3. Identifica claramente productos en riesgo de desabastecimiento
-4. Menciona productos con buen nivel de stock
-5. Da recomendaciones específicas y priorizadas para gestión de inventario
-6. Usa un tono profesional pero claro
-7. Quita código markdown, sin asteriscos ni viñetas
-
-Análisis:
-"""
-        
+        """
+        Genera un informe profesional y estructurado para análisis de inventario múltiple.
+        Formato determinístico para visualización consistente en el frontend.
+        """
         try:
-            prompt = ChatPromptTemplate.from_template(template)
-            chain = prompt | self.llm | StrOutputParser()
+            # Extraer estadísticas
+            promedio = float(estadisticas.get('promedio', 0.0))
+            minimo = float(estadisticas.get('minimo', 0.0))
+            maximo = float(estadisticas.get('maximo', 0.0))
+            producto_minimo = estadisticas.get('producto_minimo', 'N/A')
+            producto_maximo = estadisticas.get('producto_maximo', 'N/A')
+
+            # Función auxiliar para clasificar productos
+            def estado_producto(pred, ref_min):
+                try:
+                    p = float(pred)
+                except Exception:
+                    return 'Desconocido', 'Revisar dato'
+                if p < ref_min:
+                    return 'CRÍTICO', 'Reponer con prioridad. Revisar lead time.'
+                if p < ref_min * 1.5:
+                    return 'ADVERTENCIA', 'Monitorear ventas y considerar reposición.'
+                return 'ADECUADO', 'Sin acción inmediata requerida.'
+
+            # Construir informe estructurado
+            lines = []
+            lines.append(f"**Análisis Ejecutivo de Inventario - Fecha: {fecha}**")
+            lines.append("")
+            lines.append(f"Resumen: Este informe analiza {total_productos} productos y entrega prioridades de acción por producto, seguido de conclusiones operativas.")
+            lines.append("")
             
-            # Formatear productos destacados
-            productos_str = "\n".join([
-                f"  • {p['nombre']} (SKU: {p['sku']}): {p['prediccion']:.2f} unidades"
-                for p in predicciones_destacadas[:10]
-            ])
-            
-            # Formatear productos críticos
-            criticos_str = "\n".join([
-                f"  • {p['nombre']} (SKU: {p['sku']}): {p['prediccion']:.2f} unidades ⚠️"
-                for p in stock_critico[:5]
-            ]) if stock_critico else "  • Ninguno"
-            
-            # Formatear productos con buen stock
-            adecuados_str = "\n".join([
-                f"  • {p['nombre']} (SKU: {p['sku']}): {p['prediccion']:.2f} unidades ✓"
-                for p in stock_adecuado[:5]
-            ]) if stock_adecuado else "  • Ninguno"
-            
-            mensaje = chain.invoke({
-                "fecha": fecha,
-                "total_productos": total_productos,
-                "promedio": estadisticas['promedio'],
-                "minimo": estadisticas['minimo'],
-                "maximo": estadisticas['maximo'],
-                "producto_minimo": estadisticas['producto_minimo'],
-                "producto_maximo": estadisticas['producto_maximo'],
-                "total_critico": len(stock_critico),
-                "total_adecuado": len(stock_adecuado),
-                "productos_destacados": productos_str,
-                "productos_criticos": criticos_str,
-                "productos_adecuados": adecuados_str
-            })
-            
-            return mensaje.strip()
-        
+            # Estadísticas generales
+            lines.append("**Estadísticas Generales**")
+            lines.append(f"- Stock promedio predicho: {promedio:,.2f} unidades")
+            lines.append(f"- Stock mínimo: {minimo:,.2f} unidades (Producto: {producto_minimo})")
+            lines.append(f"- Stock máximo: {maximo:,.2f} unidades (Producto: {producto_maximo})")
+            lines.append(f"- Productos en riesgo (CRÍTICO): {len(stock_critico)}")
+            lines.append(f"- Productos con stock adecuado: {len(stock_adecuado)}")
+            lines.append("")
+
+            # Detalle por producto
+            lines.append("**Detalle por Producto (priorizado)**")
+            detalle_lista = predicciones_destacadas or []
+            if not detalle_lista:
+                lines.append("No hay productos detallados disponibles.")
+            else:
+                for p in detalle_lista[:50]:  # Limitar a 50 productos
+                    nombre = p.get('nombre', 'Sin nombre')
+                    sku = p.get('sku', 'N/A')
+                    pred = p.get('prediccion', 0.0)
+                    estado, recomendacion = estado_producto(pred, minimo if minimo > 0 else 1.0)
+                    lines.append(f"- {nombre} (SKU: {sku}) — Predicción: {float(pred):,.2f} unidades — Estado: {estado}")
+                    lines.append(f"  Recomendación: {recomendacion}")
+
+            lines.append("")
+            # Productos críticos
+            lines.append("**Productos Críticos (revisión inmediata)**")
+            if stock_critico:
+                for p in stock_critico[:20]:
+                    lines.append(f"- {p.get('nombre','Sin nombre')} (SKU: {p.get('sku','N/A')}) — {float(p.get('prediccion',0.0)):,.2f} unidades")
+            else:
+                lines.append("- Ninguno")
+
+            lines.append("")
+            # Productos con buen stock
+            lines.append("**Productos con Buen Nivel de Stock**")
+            if stock_adecuado:
+                for p in stock_adecuado[:20]:
+                    lines.append(f"- {p.get('nombre','Sin nombre')} (SKU: {p.get('sku','N/A')}) — {float(p.get('prediccion',0.0)):,.2f} unidades")
+            else:
+                lines.append("- Ninguno")
+
+            lines.append("")
+            # Conclusiones y recomendaciones
+            lines.append("**Conclusión y Recomendaciones**")
+            lines.append("- Priorizar reposición para los productos marcados como CRÍTICOS. Revisar tiempos de entrega y proveedores.")
+            lines.append("- Para productos en ADVERTENCIA, habilitar monitoreo diario y preparar pedidos según tendencia de ventas.")
+            lines.append("- Mantener políticas de seguridad de stock para productos con alta variabilidad de demanda.")
+            lines.append("- Realizar una revisión detallada de 5-10 productos más críticos para identificar causas (promociones, rotación, errores de datos).")
+
+            mensaje = "\n".join(lines)
+            print(f"Mensaje generado (longitud: {len(mensaje)} caracteres)")
+            return mensaje
+
         except Exception as e:
-            print(f"Error en generar_mensaje_multiple: {e}")
+            print(f"Error en generar_mensaje_multiple (formateo local): {e}")
+            import traceback
+            traceback.print_exc()
             return self._mensaje_fallback_multiple(total_productos, fecha, predicciones_destacadas)
     
     def _mensaje_fallback(self, nombre: str, prediccion: float, fecha: str, minimum_stock_level: float = 20.0) -> str:
