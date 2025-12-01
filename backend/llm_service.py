@@ -197,7 +197,7 @@ Genera SOLO la lista de recomendaciones (sin títulos adicionales):
             return conclusion.strip()
             
         except Exception as e:
-            print(f"⚠️ Error generando conclusión con LLM: {e}")
+            print(f"Error generando conclusión con LLM: {e}")
             # Fallback a conclusión estática
             return self._conclusion_fallback(num_criticos, num_adecuados, total_productos)
     
@@ -319,9 +319,7 @@ Genera SOLO la lista de recomendaciones (sin títulos adicionales):
             lines.append(conclusion_llm)
 
             mensaje = "\n".join(lines)
-            print(f"✅ Mensaje generado (longitud: {len(mensaje)} caracteres)")
-            print(f"📝 Primeros 100 chars: {mensaje[:100]}")
-            print(f"📝 Últimos 100 chars: {mensaje[-100:]}")
+            print(f"Mensaje generado (longitud: {len(mensaje)} caracteres)")
             return mensaje
 
         except Exception as e:
