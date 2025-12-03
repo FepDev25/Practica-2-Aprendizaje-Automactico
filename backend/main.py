@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException,Depends ,Query
 from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
 from pydantic import BaseModel
 from datetime import date
@@ -9,6 +9,9 @@ import os
 import numpy as np
 from paths import resolve_file
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from model.semantic_engine import SemanticRouter
+from model.database import SessionLocal
 
 app = FastAPI()
 
@@ -20,6 +23,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+mis_funciones = [
+    {"id": "saludo", "docstring": "hola buenos días saludo inicial bienvenida"},
+    {"id": "despedida", "docstring": "adiós hasta luego cerrar chat terminar"},
+    {"id": "enviar_correo", "docstring": "enviar mandar correo email redactar mensaje electronico"},
+    {"id": "calculo_stock", "docstring": "calcular días stock restante inventario cuanto queda mercadería bodega"}
+]
+
+mis_faqs = [
+    {"text": "horario atencion hora abren", "answer": "Atendemos de 9 a 18hs."},
+    {"text": "precio costo valor", "answer": "Los precios dependen del catálogo actual."}
+]
+router_engine = SemanticRouter(mis_funciones, mis_faqs)
 # Inicializar servicio LLM
 try:
     llm_service = get_llm_service()
@@ -29,6 +44,12 @@ except Exception as e:
 
 # Cargar modelo
 modelo = ModeloStockKeras()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 @app.get("/")
 async def home():
@@ -300,3 +321,8 @@ def reentrenar_modelo():
             status_code=500,
             detail=f"Error durante el reentrenamiento: {str(e)}"
         )
+
+@app.post("/chat")
+async def procesar_mensaje(query: str = Query(...)):
+    resultado = router_engine.buscar_intencion(query)
+    return resultado
