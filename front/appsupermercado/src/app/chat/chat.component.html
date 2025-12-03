@@ -1,0 +1,90 @@
+<div class="chat-container">
+  <div class="chat-header">
+    <div class="header-content">
+      <div class="header-left">
+        <svg class="bot-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect>
+          <circle cx="12" cy="5" r="2"></circle>
+          <path d="M12 7v4"></path>
+          <line x1="8" y1="16" x2="8" y2="16"></line>
+          <line x1="16" y1="16" x2="16" y2="16"></line>
+        </svg>
+        <div class="header-text">
+          <h2>Asistente de Inventario</h2>
+          <div class="status-indicator">
+            <span class="status-dot"></span>
+            <span class="status-text">Activo</span>
+          </div>
+        </div>
+      </div>
+      <button class="minimize-btn" title="Minimizar chat">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="messages-container">
+    <div class="welcome-message">
+      <div class="welcome-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+        </svg>
+      </div>
+      <h3>¡Bienvenido al Asistente Inteligente!</h3>
+      <p>Puedo ayudarte con consultas sobre tu inventario, predicciones y análisis de stock.</p>
+    </div>
+
+    <div class="message bot-message">
+      <div class="avatar bot-avatar">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="10" rx="2" ry="2"></rect>
+          <circle cx="12" cy="5" r="2"></circle>
+          <path d="M12 7v4"></path>
+        </svg>
+      </div>
+      <div class="message-content">
+        <p>Hola, soy tu asistente virtual de inventario. Puedo ayudarte con predicciones, análisis de stock y recomendaciones. ¿Qué necesitas saber?</p>
+        <span class="message-time">Ahora</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <div class="quick-actions">
+      <button class="quick-action-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        </svg>
+        Stock bajo
+      </button>
+      <button class="quick-action-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        Análisis
+      </button>
+      <button class="quick-action-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        Tendencias
+      </button>
+    </div>
+    
+    <div class="input-wrapper">
+      <input 
+        type="text" 
+        placeholder="Pregúntame sobre tu inventario..." 
+        class="message-input"
+      />
+      <button class="send-button">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>

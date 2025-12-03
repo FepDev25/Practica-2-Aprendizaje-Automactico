@@ -29,14 +29,18 @@ body {
   min-height: 100vh;
 }
 
-// Container principal
-.stock-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
+// Wrapper principal con layout de 2 columnas
+.stock-wrapper {
   min-height: 100vh;
-  padding: 60px 20px;
+  padding: 20px;
+}
+
+.stock-container {
+  display: grid;
+  grid-template-columns: 1fr 450px;
+  gap: 20px;
+  max-width: 1800px;
+  margin: 0 auto;
   animation: fadeIn 0.6s ease-out;
 }
 
@@ -51,14 +55,26 @@ body {
   }
 }
 
+// Contenido principal (izquierda)
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// Sidebar del chat (derecha)
+.chat-sidebar {
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+}
+
 // Card principal
 .stock-card {
   background: $bg-white;
   border-radius: 24px;
   box-shadow: $shadow-xl;
   padding: 0;
-  max-width: 1400px;
-  width: 100%;
   overflow: hidden;
   transition: all 0.3s ease;
 
@@ -310,7 +326,7 @@ button {
   }
 }
 
-// Botón CSV flotante mejorado
+// Botón CSV flotante
 .csv-button {
   position: fixed;
   top: 30px;
@@ -605,31 +621,269 @@ button {
   }
 }
 
-// Mensaje de resumen
-.mensaje-resumen {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-  color: $secondary-dark;
-  padding: 16px 20px;
-  border-radius: 12px;
-  border-left: 4px solid $secondary-color;
-  font-weight: 600;
+// ========================================
+// PANEL DE ANÁLISIS EJECUTIVO - REDISEÑADO
+// ========================================
+
+.analisis-panel {
+  background: $bg-white;
+  border-radius: 24px;
+  box-shadow: $shadow-xl;
+  overflow: hidden;
+  animation: slideIn 0.4s ease-out;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.18);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.analisis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32px 40px;
+  background: linear-gradient(135deg, $primary-color 0%, $primary-light 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: pulse 4s ease-in-out infinite;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+
+    .chart-icon {
+      width: 40px;
+      height: 40px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+  }
+
+  .btn-close-analisis {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.9);
+      border-color: rgba(239, 68, 68, 1);
+      transform: rotate(90deg) scale(1.1);
+    }
+
+    &:active {
+      transform: rotate(90deg) scale(0.95);
+    }
+  }
+}
+
+.analisis-content {
+  padding: 40px;
+  max-height: none;
+  min-height: 200px;
+  overflow: visible;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $bg-light;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 10px;
+
+    &:hover {
+      background: #a0aec0;
+    }
+  }
+}
+
+// ESTILOS DEL MARKDOWN - COHERENTE CON LA APP
+.markdown-content {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.8;
+  color: $text-dark;
+
+  ::ng-deep strong {
+    display: block;
+    color: $text-dark;
+    font-weight: 700;
+    font-size: 1.4rem;
+    margin-top: 32px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid $primary-light;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      width: 80px;
+      height: 3px;
+      background: $primary-color;
+    }
+
+    &:first-child {
+      margin-top: 0;
+      font-size: 1.6rem;
+      color: $primary-color;
+      border-bottom-color: $primary-color;
+    }
+  }
+
+  ::ng-deep p {
+    margin: 16px 0;
+    color: $text-medium;
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  ::ng-deep ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 20px 0;
+    display: grid;
+    gap: 12px;
+  }
+
+  ::ng-deep li {
+    padding: 18px 24px;
+    margin: 0;
+    border-left: 4px solid $primary-light;
+    background: linear-gradient(to right, rgba(37, 99, 235, 0.05), transparent);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+    position: relative;
+    box-shadow: $shadow-sm;
+
+    &::before {
+      content: '▸';
+      position: absolute;
+      left: 8px;
+      color: $primary-color;
+      font-weight: bold;
+    }
+
+    &:hover {
+      border-left-color: $primary-color;
+      background: linear-gradient(to right, rgba(37, 99, 235, 0.1), transparent);
+      transform: translateX(8px);
+      box-shadow: $shadow-md;
+    }
+  }
+
+  ::ng-deep code {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    color: $primary-dark;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-weight: 600;
+    border: 1px solid $primary-light;
+  }
+}
+
+.analisis-footer {
+  padding: 24px 40px;
+  background: linear-gradient(to bottom, transparent, rgba(37, 99, 235, 0.05));
+  border-top: 1px solid $border-color;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: $shadow-sm;
 
-  .summary-icon {
+  .info-icon {
     width: 24px;
     height: 24px;
-    stroke: $secondary-color;
-    stroke-width: 2.5;
+    stroke: $primary-color;
+    flex-shrink: 0;
+  }
+
+  .disclaimer {
+    margin: 0;
+    font-size: 0.9rem;
+    color: $text-medium;
+    line-height: 1.6;
   }
 }
 
 // Responsive
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .stock-container {
-    padding: 30px 15px;
+    grid-template-columns: 1fr;
+  }
+
+  .chat-sidebar {
+    position: relative;
+    top: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .stock-wrapper {
+    padding: 15px;
+  }
+
+  .stock-container {
+    gap: 15px;
   }
 
   .stock-card {
@@ -689,6 +943,49 @@ button {
       padding: 12px 16px;
     }
   }
+
+  .analisis-header {
+    padding: 24px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+
+    .header-left {
+      width: 100%;
+
+      .chart-icon {
+        width: 36px;
+        height: 36px;
+      }
+
+      h2 {
+        font-size: 1.35rem;
+      }
+    }
+
+    .btn-close-analisis {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+  }
+
+  .analisis-content {
+    padding: 24px;
+  }
+
+  .markdown-content ::ng-deep li {
+    font-size: 0.9rem;
+    padding: 14px 20px;
+  }
+
+  .analisis-footer {
+    padding: 20px 24px;
+
+    .disclaimer {
+      font-size: 0.85rem;
+    }
+  }
 }
 
 @media (max-width: 480px) {
@@ -698,257 +995,5 @@ button {
 
   .result-value {
     font-size: 2rem !important;
-  }
-}
-
-// ========================================
-// ESTILOS PANEL DE ANÁLISIS EJECUTIVO
-// ========================================
-
-.analisis-panel {
-  background: $bg-white;
-  border-radius: 16px;
-  box-shadow: $shadow-xl;
-  margin: 30px auto;
-  max-width: 1200px;
-  overflow: visible;
-  animation: slideIn 0.4s ease-out;
-  width: 100%;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.analisis-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-
-  h2 {
-    margin: 0;
-    font-size: 1.75rem;
-    font-weight: 600;
-    flex: 1;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .chars-count {
-    font-size: 0.9rem;
-    opacity: 0.9;
-    background: rgba(255, 255, 255, 0.15);
-    padding: 6px 12px;
-    border-radius: 20px;
-  }
-
-  .btn-close {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    &:hover {
-      background: rgba(255, 0, 0, 0.4);
-      transform: rotate(90deg);
-    }
-
-    &:active {
-      transform: rotate(90deg) scale(0.95);
-    }
-  }
-}
-
-.analisis-content {
-  padding: 32px;
-  max-height: none;
-  min-height: 200px;
-  overflow: visible;
-
-  // Si quieres limitar altura, usa esto en su lugar:
-  // max-height: 70vh;
-  // overflow-y: auto;
-  // overflow-x: hidden;
-
-  // Scroll personalizado
-  &::-webkit-scrollbar {
-    width: 10px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
-    border-radius: 10px;
-
-    &:hover {
-      background: #a0aec0;
-    }
-  }
-}
-
-// ESTILOS DEL MARKDOWN
-.markdown-content {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.7;
-  color: #2d3748;
-
-  // Títulos en negrita
-  ::ng-deep strong {
-    display: block;
-    color: #1a202c;
-    font-weight: 700;
-    font-size: 1.35rem;
-    margin-top: 32px;
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #e2e8f0;
-
-    &:first-child {
-      margin-top: 0;
-      font-size: 1.5rem;
-      color: #667eea;
-      border-bottom-color: #667eea;
-    }
-  }
-
-  // Párrafos
-  ::ng-deep p {
-    margin: 12px 0;
-    color: #4a5568;
-    font-size: 1rem;
-  }
-
-  // Listas
-  ::ng-deep ul {
-    list-style: none;
-    padding-left: 0;
-    margin: 16px 0;
-  }
-
-  ::ng-deep li {
-    padding: 14px 18px;
-    margin: 8px 0;
-    border-left: 4px solid #cbd5e0;
-    background: #f7fafc;
-    border-radius: 6px;
-    transition: all 0.25s ease;
-    font-size: 0.95rem;
-    position: relative;
-
-    &:hover {
-      border-left-color: #4299e1;
-      background: #edf2f7;
-      transform: translateX(6px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-
-    // Colorear según el contenido
-    &:contains("CRÍTICO") {
-      border-left-color: #f56565;
-      background: #fff5f5;
-    }
-
-    &:contains("ADVERTENCIA") {
-      border-left-color: #ed8936;
-      background: #fffaf0;
-    }
-
-    &:contains("ADECUADO") {
-      border-left-color: #48bb78;
-      background: #f0fff4;
-    }
-  }
-
-  // SKUs y códigos
-  ::ng-deep code {
-    background: #edf2f7;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 0.9em;
-    color: #2d3748;
-    font-family: 'Fira Code', 'Courier New', monospace;
-    font-weight: 600;
-  }
-
-  // Números destacados
-  ::ng-deep strong:contains("unidades") {
-    font-weight: 600;
-    color: #2563eb;
-  }
-}
-
-.analisis-footer {
-  padding: 20px 32px;
-  background: #f7fafc;
-  border-top: 1px solid #e2e8f0;
-
-  .disclaimer {
-    margin: 0;
-    font-size: 0.9rem;
-    color: #718096;
-    text-align: center;
-    line-height: 1.6;
-  }
-}
-
-// Responsive para análisis
-@media (max-width: 768px) {
-  .analisis-header {
-    padding: 20px 24px;
-
-    h2 {
-      font-size: 1.35rem;
-    }
-
-    .btn-close {
-      width: 36px;
-      height: 36px;
-      font-size: 1.2rem;
-    }
-  }
-
-  .analisis-content {
-    padding: 24px;
-    max-height: 70vh;
-  }
-
-  .markdown-content ::ng-deep li {
-    font-size: 0.9rem;
-    padding: 12px 14px;
-  }
-
-  .analisis-footer {
-    padding: 16px 24px;
-
-    .disclaimer {
-      font-size: 0.85rem;
-    }
   }
 }

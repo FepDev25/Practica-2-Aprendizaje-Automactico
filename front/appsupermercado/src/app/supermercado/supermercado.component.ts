@@ -3,10 +3,11 @@ import { SupermercadoService } from '../supermercado.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MarkdownModule } from 'ngx-markdown';
+import { ChatComponent } from '../chat/chat.component';
 
 @Component({
   selector: 'app-supermercado',
-  imports: [CommonModule, FormsModule, MarkdownModule],
+  imports: [CommonModule, FormsModule, MarkdownModule,ChatComponent],
   templateUrl: './supermercado.component.html',
   styleUrls: ['./supermercado.component.scss']
 })
