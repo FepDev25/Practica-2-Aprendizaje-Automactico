@@ -19,9 +19,6 @@ PROJECT_ID = os.getenv("PROJECT_ID")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 LLM_MODEL = "gemini-2.0-flash-exp"
 
-# ============================================================================
-# CLASE RAG MEJORADA
-# ============================================================================
 
 class RAGKnowledgeService:
     """Servicio RAG para responder preguntas usando knowledge base optimizada"""
@@ -43,13 +40,13 @@ class RAGKnowledgeService:
         # Inicializar knowledge base
         self._inicializar_knowledge_base()
         
-        print("✅ Servicio RAG inicializado correctamente")
+        print("Servicio RAG inicializado correctamente")
     
     def _validar_configuracion(self):
         if not PROJECT_ID:
-            raise ValueError("❌ Error: PROJECT_ID no configurado")
+            raise ValueError("Error: PROJECT_ID no configurado")
         if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-            raise FileNotFoundError("❌ Error: Credenciales de Google Cloud no encontradas")
+            raise FileNotFoundError("Error: Credenciales de Google Cloud no encontradas")
     
     def _crear_llm(self):
         return ChatVertexAI(
@@ -135,9 +132,9 @@ class RAGKnowledgeService:
         horarios_texto = f"""
         HORARIOS DE OPERACIÓN - UPS TUTI
         
-        🕐 Atención al Cliente: {COMPANY_INFO['horario']['atencion_cliente']}
-        📦 Operaciones de Almacén: {COMPANY_INFO['horario']['operaciones_almacen']}
-        🔧 Soporte Técnico: {COMPANY_INFO['horario']['soporte_tecnico']}
+        Atención al Cliente: {COMPANY_INFO['horario']['atencion_cliente']}
+        Operaciones de Almacén: {COMPANY_INFO['horario']['operaciones_almacen']}
+        Soporte Técnico: {COMPANY_INFO['horario']['soporte_tecnico']}
         
         Nota: Para urgencias fuera de horario, contactar vía WhatsApp.
         """
@@ -150,11 +147,11 @@ class RAGKnowledgeService:
         contacto_texto = f"""
         INFORMACIÓN DE CONTACTO - UPS TUTI
         
-        📧 Ventas: {COMPANY_INFO['contacto']['email_ventas']}
-        🛠️ Soporte: {COMPANY_INFO['contacto']['email_soporte']}
-        📞 Teléfono: {COMPANY_INFO['contacto']['telefono']}
-        💬 WhatsApp: {COMPANY_INFO['contacto']['whatsapp']}
-        📍 Dirección Física: {COMPANY_INFO['contacto']['direccion']}
+        Ventas: {COMPANY_INFO['contacto']['email_ventas']}
+        Soporte: {COMPANY_INFO['contacto']['email_soporte']}
+        Teléfono: {COMPANY_INFO['contacto']['telefono']}
+        WhatsApp: {COMPANY_INFO['contacto']['whatsapp']}
+        Dirección Física: {COMPANY_INFO['contacto']['direccion']}
         
         Preferencia de contacto: WhatsApp para consultas rápidas, Email para pedidos formales.
         """
@@ -252,10 +249,10 @@ class RAGKnowledgeService:
                 self.embeddings
             )
             
-            print(f"✅ Knowledge base lista: {len(docs_empresa)} docs empresa, {len(docs_faqs)} FAQs")
+            print(f"Knowledge base lista: {len(docs_empresa)} docs empresa, {len(docs_faqs)} FAQs")
             
         except Exception as e:
-            print(f"❌ Error al inicializar knowledge base: {e}")
+            print(f"Error al inicializar knowledge base: {e}")
             raise
     
     @lru_cache(maxsize=100)
@@ -332,7 +329,7 @@ RESPUESTA:
             }
             
         except Exception as e:
-            print(f"❌ Error en responder_faq: {e}")
+            print(f"Error en responder_faq: {e}")
             return {
                 "respuesta": f"Disculpa, ocurrió un error técnico. Contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}",
                 "fuentes": [],
@@ -408,7 +405,7 @@ RESPUESTA:
             }
             
         except Exception as e:
-            print(f"❌ Error en responder_sobre_empresa: {e}")
+            print(f"Error en responder_sobre_empresa: {e}")
             return {
                 "respuesta": f"Error al procesar tu consulta. Contacta: {COMPANY_INFO['contacto']['email_soporte']}",
                 "fuentes": [],
@@ -477,9 +474,7 @@ RESPUESTA:
         return resultado
 
 
-# ============================================================================
 # ROUTER SEMÁNTICO MEJORADO
-# ============================================================================
 
 class UnifiedSemanticRouter:
     """Router optimizado con mejores umbrales y caching"""
@@ -499,7 +494,7 @@ class UnifiedSemanticRouter:
         print("🔄 Vectorizando funciones y FAQs...")
         self.func_embeddings = np.array(self.embeddings.embed_documents(self.func_texts))
         self.faq_embeddings = np.array(self.embeddings.embed_documents(self.faq_texts))
-        print(f"✅ {len(self.func_embeddings)} funciones y {len(self.faq_embeddings)} FAQs vectorizadas")
+        print(f"{len(self.func_embeddings)} funciones y {len(self.faq_embeddings)} FAQs vectorizadas")
         
         # Cache
         self._cache = {}
@@ -574,9 +569,7 @@ class UnifiedSemanticRouter:
         return resultado
 
 
-# ============================================================================
 # FUNCIONES Y CONFIGURACIÓN
-# ============================================================================
 
 def crear_router_integrado(rag_service: RAGKnowledgeService) -> UnifiedSemanticRouter:
     """Factory para crear router con configuración mejorada"""
@@ -626,9 +619,7 @@ def crear_router_integrado(rag_service: RAGKnowledgeService) -> UnifiedSemanticR
     return UnifiedSemanticRouter(rag_service.embeddings, FUNCTIONS, FAQS)
 
 
-# ============================================================================
 # SINGLETON PATTERN
-# ============================================================================
 
 _rag_service = None
 

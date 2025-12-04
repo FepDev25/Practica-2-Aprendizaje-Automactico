@@ -1,34 +1,33 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException,Depends ,Query
-from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
-from pydantic import BaseModel
-from datetime import date
-from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku,obtener_minimum_stock_level
-from llm_service import get_llm_service
-from rag_service import get_rag_service
-import pandas as pd
-import os
-import numpy as np
-from paths import resolve_file
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-from model.semantic_engine import SemanticRouter
-from model.database import SessionLocal
-from model.registro import Registro
-from dias_stock_service import DiasStockService
-from rag_service import get_rag_service, crear_router_integrado
-from regex_handlers import procesar_mensaje_simple
-
-from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field, validator
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
+import pandas as pd
+import os
+import numpy as np
 import time
 import re
+
+# Modelos y servicios
+from model.modeloKeras import ModeloStockKeras, reentrenar_modelo_con_diferencias
+from model.registro_advanced import (
+    preparar_input_desde_dataset_procesado,
+    all_registers_priductos,
+    procesar_dataset_inventario,
+    buscar_producto_por_nombre,
+    buscar_nombre_por_sku,
+    obtener_minimum_stock_level
+)
+from model.database import SessionLocal
 from model.funciones import FUNCIONES_DISPONIBLES
-
-
+from llm_service import get_llm_service
 from rag_service import get_rag_service, crear_router_integrado
+from dias_stock_service import DiasStockService
 from company_info import COMPANY_INFO
+
+from regex_handlers import procesar_mensaje_simple
+
 
 def extraer_parametros_del_mensaje(mensaje: str) -> Dict:
     """
@@ -65,53 +64,6 @@ def extraer_parametros_del_mensaje(mensaje: str) -> Dict:
     return params
 
 
-def procesar_mensaje_simple(mensaje: str) -> Optional[Dict]:
-    """
-    Procesa mensajes simples con regex (Nivel 1)
-    """
-    mensaje_lower = mensaje.lower().strip()
-    
-    # Saludos
-    if re.match(r'^(hola|buenos días|buenas tardes|buenas noches|hey|hi)$', mensaje_lower):
-        return {
-            "respuesta": f"¡Hola! 👋 Soy el asistente virtual de UPS Tuti. Puedo ayudarte con:\n\n" +
-                        "• Predicciones de stock\n" +
-                        "• Alertas de inventario\n" +
-                        "• Búsqueda de productos\n" +
-                        "• Envío de reportes\n\n" +
-                        "¿En qué puedo ayudarte?",
-            "tipo": "saludo"
-        }
-    
-    # Despedidas
-    if re.match(r'^(adiós|chao|hasta luego|bye|nos vemos)$', mensaje_lower):
-        return {
-            "respuesta": "¡Hasta pronto! 👋 Si necesitas algo más, aquí estaré.",
-            "tipo": "despedida"
-        }
-    
-    # Agradecimientos
-    if re.match(r'^(gracias|muchas gracias|thanks|thank you)$', mensaje_lower):
-        return {
-            "respuesta": "¡De nada! 😊 ¿Hay algo más en lo que pueda ayudarte?",
-            "tipo": "agradecimiento"
-        }
-    
-    # Help
-    if re.match(r'^(ayuda|help|qué puedes hacer|opciones)$', mensaje_lower):
-        return {
-            "respuesta": "Puedo ayudarte con:\n\n" +
-                        "**Predicciones**: 'predecir stock del SKU-123'\n" +
-                        "**Alertas**: 'generar alerta de bajo stock'\n" +
-                        "**Búsquedas**: 'buscar producto galletas'\n" +
-                        "**Reportes**: 'enviar reporte a gerencia@upstuti.com'\n\n" +
-                        "También puedo responder preguntas sobre la empresa.",
-            "tipo": "ayuda"
-        }
-    
-    return None
-
-
 class ChatInput(BaseModel):
     mensaje: str = Field(..., min_length=1, max_length=500, description="Mensaje del usuario")
     usuario_id: Optional[str] = Field(None, description="ID del usuario para tracking")
@@ -145,7 +97,6 @@ app = FastAPI()
 
 # Variables globales para servicios
 dias_stock_service = None
-router_engine = None
 rag_service = None
 router = None
 llm_service = None
@@ -164,7 +115,7 @@ async def startup_event():
     Inicializa todos los servicios pesados durante el startup
     para evitar segfaults por carga durante requests
     """
-    global dias_stock_service, router_engine, rag_service, router, llm_service
+    global dias_stock_service, rag_service, router, llm_service
     
     print("Iniciando carga de servicios...")
     
@@ -175,24 +126,7 @@ async def startup_event():
     except Exception as e:
         print(f"Error cargando DiasStockService: {e}")
     
-    # 2. Semantic Router (ligero)
-    try:
-        mis_funciones = [
-            {"id": "saludo", "docstring": "hola buenos días saludo inicial bienvenida"},
-            {"id": "despedida", "docstring": "adiós hasta luego cerrar chat terminar"},
-            {"id": "enviar_correo", "docstring": "enviar mandar correo email redactar mensaje electronico"},
-            {"id": "calculo_stock", "docstring": "calcular días stock restante inventario cuanto queda mercadería bodega"}
-        ]
-        mis_faqs = [
-            {"text": "horario atencion hora abren", "answer": "Atendemos de 9 a 18hs."},
-            {"text": "precio costo valor", "answer": "Los precios dependen del catálogo actual."}
-        ]
-        router_engine = SemanticRouter(mis_funciones, mis_faqs)
-        print("SemanticRouter cargado")
-    except Exception as e:
-        print(f"Error cargando SemanticRouter: {e}")
-    
-    # 3. Servicio RAG (pesado - FAISS + embeddings)
+    # 2. Servicio RAG (pesado - FAISS + embeddings)
     try:
         rag_service = get_rag_service()
         print("RAG Service cargado")
@@ -200,7 +134,7 @@ async def startup_event():
         print(f"Error cargando RAG Service: {e}")
         rag_service = None
     
-    # 4. Router integrado (requiere RAG)
+    # 3. Router integrado (requiere RAG)
     try:
         if rag_service:
             router = crear_router_integrado(rag_service)
@@ -209,7 +143,7 @@ async def startup_event():
         print(f"Error cargando Router integrado: {e}")
         router = None
     
-    # 5. Servicio LLM (opcional)
+    # 4. Servicio LLM (opcional)
     try:
         llm_service = get_llm_service()
         print("LLM Service cargado")
@@ -271,18 +205,7 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/")
-async def home():
-    return {"msg": "Hola mundo."}
-
 @app.get("/modelo/info")
-async def info_modelo():
-    if modelo is None:
-        raise HTTPException(status_code=503, detail="Modelo no disponible")
-    resumen = modelo.obtener_resumen()
-    return {"resumen": resumen}
-
-@app.get("/predictPornombre")
 def predict(fecha: str, nombre: str):
     if modelo is None:
         raise HTTPException(status_code=503, detail="Modelo no disponible")
@@ -333,60 +256,6 @@ def predict(fecha: str, nombre: str):
             "fecha_prediccion": fecha,
             "prediction": float(pred),
             "mensaje": mensaje_llm or f"Predicción para {nombre_completo}: {pred:.2f} unidades disponibles para {fecha}"
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al predecir: {str(e)}"
-        )
-
-@app.get("/predictPorID")
-def predict(fecha: str, id: int):
-    if modelo is None:
-        raise HTTPException(status_code=503, detail="Modelo no disponible")
-
-    try:
-        sku = buscar_producto_por_id(id)
-        
-        if sku is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No se encontró ningún producto con id '{id}'"
-            )
-
-        features = preparar_input_desde_dataset_procesado(
-            sku=sku,
-            fecha_override=fecha
-        )
-
-        pred = modelo.predecir(features)
-        
-        nombre_producto = buscar_nombre_por_sku(sku)
-        
-        # Obtener minimum_stock_level del producto
-        minimum_stock = obtener_minimum_stock_level(sku) or 20.0
-        
-        mensaje_llm = None
-        if llm_service:
-            try:
-                mensaje_llm = llm_service.generar_mensaje_prediccion(
-                    nombre_producto=nombre_producto,
-                    sku=sku,
-                    fecha=fecha,
-                    prediccion=float(pred),
-                    minimum_stock_level=minimum_stock
-                )
-            except Exception as llm_error:
-                print(f"Error generando mensaje LLM: {llm_error}")
-
-        return {
-            "id_ingresado": id,
-            "nombre_producto": nombre_producto,
-            "sku_detectado": sku,
-            "fecha_prediccion": fecha,
-            "prediction": float(pred),
-            "mensaje": mensaje_llm or f"Predicción para {nombre_producto}: {pred:.2f} unidades disponibles para {fecha}"
         }
 
     except Exception as e:
@@ -557,7 +426,7 @@ async def chat_endpoint(
     db: Session = Depends(get_db)
 ):
     """
-    🤖 Endpoint principal de chat con routing inteligente de 3 niveles
+    Endpoint principal de chat con routing inteligente de 3 niveles
     """
     
     inicio = time.time()
@@ -578,7 +447,7 @@ async def chat_endpoint(
             )
         
         # NIVEL 2: ROUTER SEMÁNTICO - Detección de intenciones
-        print(f"🎯 [NIVEL 2 - ROUTER] Analizando intención...")
+        print(f"[NIVEL 2 - ROUTER] Analizando intención...")
         intencion = router.buscar_intencion(
             mensaje,
             umbral_func=0.60,
@@ -613,8 +482,8 @@ async def chat_endpoint(
                 if data.contexto:
                     params_extraidos.update(data.contexto)
                 
-                print(f"🎯 Ejecutando función: {nombre_func}")
-                print(f"📋 Parámetros: {params_extraidos}")
+                print(f"Ejecutando función: {nombre_func}")
+                print(f"Parámetros: {params_extraidos}")
                 
                 # EJECUTAR FUNCIÓN REAL CON BD
                 resultado_funcion = FUNCIONES_DISPONIBLES[nombre_func](
@@ -737,226 +606,3 @@ Responde en español, tono profesional pero amigable.
             status_code=500,
             detail=f"Error interno del servidor. Contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}"
         )
-
-
-
-
-@app.get("/rag/faq")
-async def responder_faq(pregunta: str = Query(..., description="Pregunta del usuario sobre FAQs")):
-    # para responder preguntas frecuentes usando RAG
-    
-    if not rag_service:
-        raise HTTPException(
-            status_code=503,
-            detail="Servicio RAG no disponible. Verifica configuración de credenciales."
-        )
-    
-    try:
-        resultado = rag_service.responder_faq(pregunta)
-        return {
-            "pregunta": pregunta,
-            "respuesta": resultado['respuesta'],
-            "fuentes": resultado['fuentes'],
-            "confianza": resultado['confianza'],
-            "tipo": "faq"
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al procesar pregunta FAQ: {str(e)}"
-        )
-
-
-@app.get("/rag/empresa")
-async def consultar_empresa(consulta: str = Query(..., description="Consulta sobre información de la empresa")):
-    # consultar información general de la empresa usando RAG
-
-    if not rag_service:
-        raise HTTPException(
-            status_code=503,
-            detail="Servicio RAG no disponible. Verifica configuración de credenciales."
-        )
-    
-    try:
-        resultado = rag_service.responder_sobre_empresa(consulta)
-        return {
-            "consulta": consulta,
-            "respuesta": resultado['respuesta'],
-            "fuentes": resultado['fuentes'],
-            "confianza": resultado['confianza'],
-            "tipo": "empresa"
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al procesar consulta de empresa: {str(e)}"
-        )
-
-
-@app.get("/rag/pregunta")
-async def responder_pregunta_general(pregunta: str = Query(..., description="Pregunta general (auto-detecta FAQ o empresa)")):
-    """
-    analiza la pregunta y decide si buscar en FAQs o en información de la empresa
-    como:
-        ¿Cómo puedo contactarlos? → FAQ
-        ¿Qué productos venden? → Empresa
-        ¿Cuál es su horario? → FAQ
-        Cuéntame sobre UPS Tuti → Empresa
-    """
-    if not rag_service:
-        raise HTTPException(
-            status_code=503,
-            detail="Servicio RAG no disponible. Verifica configuración de credenciales."
-        )
-    
-    try:
-        resultado = rag_service.responder_pregunta_general(pregunta)
-        return {
-            "pregunta": pregunta,
-            "respuesta": resultado['respuesta'],
-            "fuentes": resultado['fuentes'],
-            "confianza": resultado['confianza'],
-            "tipo_busqueda": resultado['tipo_busqueda']
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al procesar pregunta: {str(e)}"
-        )
-
-
-@app.get("/rag/info")
-async def info_rag():
-    # info del sistema RAG
-
-    if not rag_service:
-        return {
-            "status": "no_disponible",
-            "mensaje": "Servicio RAG no inicializado"
-        }
-    
-    try:
-        from company_info import COMPANY_INFO, FAQS
-        
-        return {
-            "status": "activo",
-            "empresa": {
-                "nombre": COMPANY_INFO['nombre'],
-                "nicho": COMPANY_INFO['nicho'],
-                "fundacion": COMPANY_INFO['fundacion'],
-                "sede": COMPANY_INFO['sede']
-            },
-            "knowledge_base": {
-                "num_faqs": len(FAQS),
-                "num_categorias_productos": len(COMPANY_INFO['productos']),
-                "num_servicios": len(COMPANY_INFO['servicios']),
-                "num_proveedores": len(COMPANY_INFO['proveedores'])
-            },
-            "endpoints": {
-                "faq": "/rag/faq?pregunta=tu_pregunta",
-                "empresa": "/rag/empresa?consulta=tu_consulta",
-                "general": "/rag/pregunta?pregunta=tu_pregunta",
-                "info": "/rag/info"
-            },
-            "modelo_embeddings": "text-embedding-005",
-            "modelo_llm": "gemini-2.0-flash-exp"
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al obtener información RAG: {str(e)}"
-        )
-        
-@app.post("/cargar-csv")
-def cargar_csv(db: SessionLocal = Depends(get_db)):
-    try:
-        df = pd.read_csv("model/files/dataset.csv")
-
-        # Si existe la columna id, eliminarla porque es autoincremental
-        if "id" in df.columns:
-            df = df.drop(columns=["id"])
-
-        # Convertir columnas fecha
-        date_cols = [
-            "created_at", "last_order_date", "last_stock_count_date",
-            "last_updated_at", "expiration_date"
-        ]
-
-        for col in date_cols:
-            if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors="coerce")
-                df[col] = df[col].astype("object").where(df[col].notna(), None)
-                df[col] = df[col].apply(lambda x: x.date() if x is not None else None)
-
-        # Convertir booleanos
-        bool_cols = ["vacaciones_o_no", "es_feriado", "temporada_alta", "is_active"]
-        for col in bool_cols:
-            if col in df.columns:
-                df[col] = df[col].astype(str).str.lower().map(
-                    {"true": True, "1": True, "false": False, "0": False}
-                )
-
-        registros = [
-            Registro(**row.dropna().to_dict()) for _, row in df.iterrows()
-        ]
-
-        db.add_all(registros)
-        db.commit()
-
-        return {"message": "CSV cargado con éxito", "total": len(registros)}
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(500, f"Error cargando CSV: {str(e)}")
-
-
-@app.get("/check-db-full")
-def check_db_full():
-    try:
-        db = SessionLocal()
-        result = db.execute(text("SELECT COUNT(*) FROM registros"))
-        total = result.scalar()
-        return {"status": "OK", "tabla": "registros", "total_registros": total}
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-    
-    finally:
-        db.close()
-        
-from sqlalchemy import distinct
-
-@app.get("/analisis-stock")
-def analizar_stock_desde_bd(db: SessionLocal = Depends(get_db)):
-    
-    # 1. Obtener solo el registro más reciente por producto
-    registros = (
-        db.query(
-            Registro.product_name,
-            Registro.average_daily_usage,
-            Registro.quantity_on_hand,
-            Registro.created_at
-        )
-        .distinct(Registro.product_name)  # ← evita duplicados
-        .order_by(Registro.product_name, Registro.created_at.desc())  # ← selecciona el más reciente
-        .all()
-    )
-
-    if not registros:
-        return {"mensaje": "No hay datos para analizar."}
-
-    # 2. Construir lote
-    productos_lote = [
-        {
-            "nombre": r.product_name,
-            "stock": r.quantity_on_hand,
-            "ventas_diarias": r.average_daily_usage
-        }
-        for r in registros
-    ]
-
-    # 3. Analizar lote
-    resultado = dias_stock_service.analizar_lote_productos(productos_lote)
-
-    return resultado
-
