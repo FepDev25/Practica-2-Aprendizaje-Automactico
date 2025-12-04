@@ -197,8 +197,6 @@ def convertir_numpy_a_python(obj):
         return [convertir_numpy_a_python(item) for item in obj]
     return obj
 
-class ChatInput(BaseModel):
-    mensaje: str
 # Cargar modelo
 modelo = ModeloStockKeras()
 def get_db():
@@ -496,6 +494,7 @@ async def chat_endpoint(
         respuesta_simple = procesar_mensaje_simple(mensaje)
         
         if respuesta_simple:
+            print(f"✅ [NIVEL 1 - REGEX] Respuesta rápida: {respuesta_simple['tipo']}")
             return ChatResponse(
                 respuesta=respuesta_simple["respuesta"],
                 metodo="regex",
@@ -505,11 +504,13 @@ async def chat_endpoint(
             )
         
         # NIVEL 2: ROUTER SEMÁNTICO - Detección de intenciones
+        print(f"🎯 [NIVEL 2 - ROUTER] Analizando intención...")
         intencion = router.buscar_intencion(
             mensaje,
             umbral_func=0.60,
             umbral_faq=0.55
         )
+        print(f"   └─ Tipo: {intencion['tipo']} | Score: {intencion['score']:.3f}")
         
         # CASO 2A: ACCIÓN DETECTADA → Ejecutar función con BD
         if intencion["tipo"] == "accion" and intencion["score"] > 0.65:
@@ -617,9 +618,14 @@ Responde en español, tono profesional pero amigable.
             )
         
         # NIVEL 3: RAG - Búsqueda contextual avanzada
-        print(f"🔍 Usando RAG para: {mensaje}")
+        print(f"🔍 [NIVEL 3 - RAG] Procesando: {mensaje}")
         
         resultado_rag = rag_service.responder_pregunta_general(mensaje)
+        
+        print(f"   └─ Tipo búsqueda: {resultado_rag.get('tipo_busqueda', 'N/A')}")
+        print(f"   └─ Confianza: {resultado_rag.get('confianza', 'N/A')}")
+        print(f"   └─ # Fuentes: {resultado_rag.get('num_fuentes', 0)}")
+        print(f"   └─ Longitud respuesta: {len(resultado_rag.get('respuesta', ''))} caracteres")
         
         # Convertir todos los valores numpy a tipos nativos de Python
         resultado_rag = convertir_numpy_a_python(resultado_rag)

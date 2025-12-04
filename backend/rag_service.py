@@ -293,22 +293,24 @@ class RAGKnowledgeService:
             
             contexto = "\n\n---\n\n".join(contexto_items)
             
-            # Prompt mejorado
+            # Prompt mejorado para FAQs más útiles
             template = """
 Eres un asistente experto de UPS Tuti, distribuidor mayorista de snacks saludables en Ecuador.
 
-CONTEXTO DE FAQs RELEVANTES:
+PREGUNTAS FRECUENTES RELACIONADAS:
 {contexto}
 
 PREGUNTA DEL USUARIO: {pregunta}
 
-INSTRUCCIONES:
-1. Responde usando la información de las FAQs más relevantes
-2. Si hay múltiples FAQs relevantes, sintetiza la información
-3. Sé específico con datos concretos (horarios, precios, políticas)
-4. Si la pregunta no está completamente cubierta, indica qué información adicional necesitas
-5. Mantén un tono profesional pero cercano y amigable
-6. Máximo 5 oraciones, directo al punto
+INSTRUCCIONES IMPORTANTES:
+1. Proporciona una respuesta COMPLETA Y ÚTIL basada en las FAQs
+2. Incluye TODOS los datos relevantes: horarios exactos, montos, procesos paso a paso
+3. Si hay varios puntos importantes, enuméralos claramente
+4. Si la pregunta tiene múltiples aspectos, abordalos todos
+5. Sé específico con nombres, números, contactos y URLs cuando aplique
+6. Tono cercano y servicial, como un asesor comercial experto
+7. Entre 3-6 oraciones dependiendo de la complejidad
+8. Si mencionas contacto, incluye email y teléfono
 
 RESPUESTA:
             """
@@ -365,23 +367,26 @@ RESPUESTA:
             
             contexto = "\n\n---\n\n".join(contexto_items)
             
-            # Prompt mejorado
+            # Prompt mejorado para respuestas más completas
             template = """
-Eres un asistente experto de UPS Tuti, con conocimiento profundo de la empresa.
+Eres un asistente experto de UPS Tuti, distribuidor mayorista de snacks saludables en Cuenca, Ecuador.
 
-INFORMACIÓN CORPORATIVA RELEVANTE:
+INFORMACIÓN CORPORATIVA DISPONIBLE:
 {contexto}
 
-CONSULTA DEL USUARIO: {consulta}
+PREGUNTA DEL USUARIO: {consulta}
 
-INSTRUCCIONES:
-1. Responde usando ÚNICAMENTE la información proporcionada
-2. Sé preciso con datos específicos (fechas, números, nombres, SKUs)
-3. Si mencionas productos, incluye SKUs cuando estén disponibles
-4. Si la información está incompleta, indícalo claramente
-5. Prioriza la información más relevante (basada en los scores)
-6. Tono profesional, conciso y útil
-7. Máximo 6 oraciones
+INSTRUCCIONES IMPORTANTES:
+1. Proporciona una respuesta COMPLETA y DETALLADA usando toda la información relevante del contexto
+2. Si preguntan "qué hacemos" o "a qué nos dedicamos", explica:
+   - Nuestra actividad principal (distribución mayorista de snacks saludables)
+   - Nuestros productos destacados
+   - Nuestra propuesta de valor (tecnología IA para inventario)
+3. Si mencionas productos, incluye ejemplos específicos con SKUs
+4. Estructura la respuesta de forma clara con bullet points si hay múltiples elementos
+5. Incluye datos concretos (fechas, ubicación, números) cuando estén disponibles
+6. Tono profesional pero cálido y acogedor
+7. Respuesta entre 4-8 oraciones según la complejidad de la pregunta
 
 RESPUESTA:
             """
@@ -423,10 +428,11 @@ RESPUESTA:
         }
         
         keywords_empresa = {
-            'corporativo': ['misión', 'visión', 'historia', 'fundación'],
-            'productos': ['producto', 'sku', 'catálogo', 'snack'],
-            'servicios': ['servicio', 'ofrece', 'provee'],
-            'partners': ['proveedor', 'socio', 'alianza']
+            'corporativo': ['misión', 'visión', 'historia', 'fundación', 'dedica', 'hace', 'empresa', 'ups tuti', 'nosotros'],
+            'productos': ['producto', 'sku', 'catálogo', 'snack', 'vende', 'venden', 'tienen', 'galleta', 'chip', 'barra'],
+            'servicios': ['servicio', 'ofrece', 'provee', 'facilita', 'brinda'],
+            'partners': ['proveedor', 'socio', 'alianza'],
+            'ubicacion': ['dónde', 'donde', 'ubicación', 'dirección', 'ciudad', 'sede']
         }
         
         pregunta_lower = pregunta.lower()
