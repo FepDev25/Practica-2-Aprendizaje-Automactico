@@ -30,9 +30,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   }
 
   chat(msg: string) {
-    if (!msg.trim()) return; // evita enviar vacíos
+    if (!msg.trim()) return; 
 
-    // 1. Guardar mensaje del usuario
     this.messages.push({
       from: 'user',
       text: msg,
@@ -41,7 +40,6 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
     this.shouldScroll = true;
 
-    // 2. Enviar al backend
     this.chatservice.postChatMessage(msg).subscribe(
       (response: any) => {
         console.log('Respuesta del servidor:', response);
@@ -55,14 +53,13 @@ export class ChatComponent implements OnInit, AfterViewChecked {
         else if (response?.tipo === 'accion') {
           const funcion = response.funcion || 'acción';
           const descripcion = response.meta?.docstring || '';
-          textoBot = `${funcion}: ${descripcion}`;
+          textoBot = `${descripcion}`;
         }
 
         else {
           textoBot = 'No pude interpretar la respuesta del servidor.';
         }
 
-        // Agregar mensaje del bot
         this.messages.push({
           from: 'bot',
           text: textoBot,
@@ -86,7 +83,6 @@ export class ChatComponent implements OnInit, AfterViewChecked {
       }
     );
 
-    // 3. Limpiar input
     this.message = '';
   }
 
