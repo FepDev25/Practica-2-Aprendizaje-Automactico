@@ -101,10 +101,10 @@ def procesar_mensaje_simple(mensaje: str) -> Optional[Dict]:
     if re.match(r'^(ayuda|help|qué puedes hacer|opciones)$', mensaje_lower):
         return {
             "respuesta": "Puedo ayudarte con:\n\n" +
-                        "📊 **Predicciones**: 'predecir stock del SKU-123'\n" +
-                        "🚨 **Alertas**: 'generar alerta de bajo stock'\n" +
-                        "🔍 **Búsquedas**: 'buscar producto galletas'\n" +
-                        "📧 **Reportes**: 'enviar reporte a gerencia@upstuti.com'\n\n" +
+                        "**Predicciones**: 'predecir stock del SKU-123'\n" +
+                        "**Alertas**: 'generar alerta de bajo stock'\n" +
+                        "**Búsquedas**: 'buscar producto galletas'\n" +
+                        "**Reportes**: 'enviar reporte a gerencia@upstuti.com'\n\n" +
                         "También puedo responder preguntas sobre la empresa.",
             "tipo": "ayuda"
         }
@@ -166,7 +166,7 @@ async def startup_event():
     """
     global dias_stock_service, router_engine, rag_service, router, llm_service
     
-    print("🚀 Iniciando carga de servicios...")
+    print("Iniciando carga de servicios...")
     
     # 1. Servicio de días de stock (ligero)
     try:
@@ -701,7 +701,7 @@ Responde en español, tono profesional pero amigable.
             )
         
         # NIVEL 3: RAG - Búsqueda contextual avanzada
-        print(f"🔍 [NIVEL 3 - RAG] Procesando: {mensaje}")
+        print(f"[NIVEL 3 - RAG] Procesando: {mensaje}")
         
         resultado_rag = rag_service.responder_pregunta_general(mensaje)
         
