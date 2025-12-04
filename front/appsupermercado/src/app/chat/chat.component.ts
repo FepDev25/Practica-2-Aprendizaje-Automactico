@@ -44,25 +44,16 @@ export class ChatComponent implements OnInit, AfterViewChecked {
       (response: any) => {
         console.log('Respuesta del servidor:', response);
 
-        let textoBot = '';
-
-        if (response?.tipo === 'desconocido') {
-          textoBot = response.mensaje || 'No entendí eso.';
-        }
-
-        else if (response?.tipo === 'accion') {
-          const funcion = response.funcion || 'acción';
-          const descripcion = response.meta?.docstring || '';
-          textoBot = `${descripcion}`;
-        }
-
-        else {
-          textoBot = 'No pude interpretar la respuesta del servidor.';
-        }
+        // El backend devuelve { respuesta: string, metodo: string, tipo: string, ... }
+        let textoBot = response?.respuesta || 'No recibí una respuesta válida.';
 
         this.messages.push({
           from: 'bot',
           text: textoBot,
+          metodo: response?.metodo,
+          tipo: response?.tipo,
+          confianza: response?.confianza,
+          fuentes: response?.fuentes,
           raw: response,
           time: new Date()
         });
