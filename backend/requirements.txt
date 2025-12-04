@@ -12,10 +12,14 @@ numpy==1.26.4
 pandas==2.2.3
 
 # LangChain y Google AI
-langchain==1.0.3
-langchain-core==1.0.3
-langchain-google-vertexai==2.0.12
-langchain-community==1.0.5
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-google-vertexai>=2.0.0
+langchain-community>=0.3.0
+
+# Vector Store para RAG
+faiss-cpu>=1.8.0
+langchain-text-splitters>=0.3.0
 
 # Google Cloud
 google-cloud-aiplatform==1.76.0

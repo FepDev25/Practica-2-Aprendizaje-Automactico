@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from datetime import date
 from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku,obtener_minimum_stock_level
 from llm_service import get_llm_service
+from rag_service import get_rag_service
 import pandas as pd
 import os
 import numpy as np
@@ -41,6 +42,14 @@ try:
 except Exception as e:
     print(f"Advertencia: No se pudo inicializar el servicio LLM: {e}")
     llm_service = None
+
+# Inicializar servicio RAG
+try:
+    rag_service = get_rag_service()
+    print("Servicio RAG inicializado correctamente")
+except Exception as e:
+    print(f"Advertencia: No se pudo inicializar el servicio RAG: {e}")
+    rag_service = None
 
 # Cargar modelo
 modelo = ModeloStockKeras()
@@ -326,3 +335,131 @@ def reentrenar_modelo():
 async def procesar_mensaje(query: str = Query(...)):
     resultado = router_engine.buscar_intencion(query)
     return resultado
+
+# RAG Endpoints
+
+@app.get("/rag/faq")
+async def responder_faq(pregunta: str = Query(..., description="Pregunta del usuario sobre FAQs")):
+    # para responder preguntas frecuentes usando RAG
+    
+    if not rag_service:
+        raise HTTPException(
+            status_code=503,
+            detail="Servicio RAG no disponible. Verifica configuración de credenciales."
+        )
+    
+    try:
+        resultado = rag_service.responder_faq(pregunta)
+        return {
+            "pregunta": pregunta,
+            "respuesta": resultado['respuesta'],
+            "fuentes": resultado['fuentes'],
+            "confianza": resultado['confianza'],
+            "tipo": "faq"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al procesar pregunta FAQ: {str(e)}"
+        )
+
+
+@app.get("/rag/empresa")
+async def consultar_empresa(consulta: str = Query(..., description="Consulta sobre información de la empresa")):
+    # consultar información general de la empresa usando RAG
+
+    if not rag_service:
+        raise HTTPException(
+            status_code=503,
+            detail="Servicio RAG no disponible. Verifica configuración de credenciales."
+        )
+    
+    try:
+        resultado = rag_service.responder_sobre_empresa(consulta)
+        return {
+            "consulta": consulta,
+            "respuesta": resultado['respuesta'],
+            "fuentes": resultado['fuentes'],
+            "confianza": resultado['confianza'],
+            "tipo": "empresa"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al procesar consulta de empresa: {str(e)}"
+        )
+
+
+@app.get("/rag/pregunta")
+async def responder_pregunta_general(pregunta: str = Query(..., description="Pregunta general (auto-detecta FAQ o empresa)")):
+    """
+    analiza la pregunta y decide si buscar en FAQs o en información de la empresa
+    como:
+        ¿Cómo puedo contactarlos? → FAQ
+        ¿Qué productos venden? → Empresa
+        ¿Cuál es su horario? → FAQ
+        Cuéntame sobre UPS Tuti → Empresa
+    """
+    if not rag_service:
+        raise HTTPException(
+            status_code=503,
+            detail="Servicio RAG no disponible. Verifica configuración de credenciales."
+        )
+    
+    try:
+        resultado = rag_service.responder_pregunta_general(pregunta)
+        return {
+            "pregunta": pregunta,
+            "respuesta": resultado['respuesta'],
+            "fuentes": resultado['fuentes'],
+            "confianza": resultado['confianza'],
+            "tipo_busqueda": resultado['tipo_busqueda']
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al procesar pregunta: {str(e)}"
+        )
+
+
+@app.get("/rag/info")
+async def info_rag():
+    # info del sistema RAG
+
+    if not rag_service:
+        return {
+            "status": "no_disponible",
+            "mensaje": "Servicio RAG no inicializado"
+        }
+    
+    try:
+        from company_info import COMPANY_INFO, FAQS
+        
+        return {
+            "status": "activo",
+            "empresa": {
+                "nombre": COMPANY_INFO['nombre'],
+                "nicho": COMPANY_INFO['nicho'],
+                "fundacion": COMPANY_INFO['fundacion'],
+                "sede": COMPANY_INFO['sede']
+            },
+            "knowledge_base": {
+                "num_faqs": len(FAQS),
+                "num_categorias_productos": len(COMPANY_INFO['productos']),
+                "num_servicios": len(COMPANY_INFO['servicios']),
+                "num_proveedores": len(COMPANY_INFO['proveedores'])
+            },
+            "endpoints": {
+                "faq": "/rag/faq?pregunta=tu_pregunta",
+                "empresa": "/rag/empresa?consulta=tu_consulta",
+                "general": "/rag/pregunta?pregunta=tu_pregunta",
+                "info": "/rag/info"
+            },
+            "modelo_embeddings": "text-embedding-005",
+            "modelo_llm": "gemini-2.0-flash-exp"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener información RAG: {str(e)}"
+        )

@@ -12,7 +12,7 @@ load_dotenv(dotenv_path=env_path)
 # Configuración
 PROJECT_ID = os.getenv("PROJECT_ID")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-LLM_MODEL = "gemini-2.0-flash-exp"  # Modelo más rápido y económico
+LLM_MODEL = "gemini-2.0-flash-exp" 
 
 
 class LLMPrediccionService:
