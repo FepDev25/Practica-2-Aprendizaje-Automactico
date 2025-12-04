@@ -29,10 +29,8 @@ backend/docs
 Thumbs.db
 
 # Project specific - Large files tracked with Git LFS
-*.keras
 *.h5
 *.pkl
-*.joblib
 *.npy
 *.npz
 
