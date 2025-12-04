@@ -60,3 +60,10 @@ dist/
 
 /modelo/notebooks/mlruns/
 mlruns/
+# Credenciales de Google Cloud - NUNCA SUBIR
+*.json
+!package.json
+!tsconfig*.json
+backend/env/
+*.zip
+*.tar.gz
