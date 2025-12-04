@@ -214,7 +214,7 @@ async def startup_event():
         llm_service = get_llm_service()
         print("LLM Service cargado")
     except Exception as e:
-        print(f"⚠️  LLM Service no disponible: {e}")
+        print(f"LLM Service no disponible: {e}")
         llm_service = None
     
     print("🎉 Todos los servicios iniciados")
