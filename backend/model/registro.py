@@ -1,47 +1,59 @@
-from sqlalchemy import Column, Integer, String, Date,Float, Boolean
+from sqlalchemy import Column, Integer, String, Float, Boolean, Date
 from sqlalchemy.orm import declarative_base
-
-from db import engine
 
 Base = declarative_base()
 
-class Registros(Base):  
-    __tablename__ = "registros"  
+class Registro(Base):
+    __tablename__ = "registros"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
+
     created_at = Column(Date)
     product_id = Column(Integer)
-    product_name = Column(String)
-    product_sku = Column(String)
+    product_name = Column(String(255))
+    product_sku = Column(String(100))
     supplier_id = Column(Integer)
-    supplier_name = Column(String)
+    supplier_name = Column(String(255))
     prioridad_proveedor = Column(Integer)
-    quantity_on_hand = Column(Float)
-    quantity_reserved = Column(Float)
-    quantity_available = Column(Float)
-    minimum_stock_level = Column(Float)
-    reorder_point = Column(Float)
-    optimal_stock_level = Column(Float)
-    reorder_quantity = Column(Float)
+
+    quantity_on_hand = Column(Integer)
+    quantity_reserved = Column(Integer)
+    quantity_available = Column(Integer)
+
+    minimum_stock_level = Column(Integer)
+    reorder_point = Column(Integer)
+    optimal_stock_level = Column(Integer)
+    reorder_quantity = Column(Integer)
+
     average_daily_usage = Column(Float)
+
     last_order_date = Column(Date)
     last_stock_count_date = Column(Date)
+
     unit_cost = Column(Float)
     total_value = Column(Float)
+
     expiration_date = Column(Date)
-    batch_number = Column(String)
-    warehouse_location = Column(String)
-    shelf_location = Column(String)
-    region_almacen = Column(String)
-    stock_status = Column(String)
+
+    batch_number = Column(String(100))
+    warehouse_location = Column(String(200))
+    shelf_location = Column(String(200))
+    region_almacen = Column(String(200))
+
+    stock_status = Column(String(50))
     is_active = Column(Boolean)
+
     last_updated_at = Column(Date)
+
     created_by_id = Column(Integer)
     record_sequence_number = Column(Integer)
-    categoria_producto = Column(String)
-    subcategoria_producto = Column(String)
+
+    categoria_producto = Column(String(200))
+    subcategoria_producto = Column(String(200))
+
     anio = Column(Integer)
     mes = Column(Integer)
+
     vacaciones_o_no = Column(Boolean)
     es_feriado = Column(Boolean)
     temporada_alta = Column(Boolean)
-Base.metadata.create_all(engine)
