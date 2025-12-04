@@ -6,12 +6,12 @@ import { Injectable } from '@angular/core';
 })
 export class ChatService {
 
-  url = 'http://localhost:8000';
+  url = 'http://34.10.46.216:8000';
   constructor(private http: HttpClient) { }
 
   postChatMessage(msg: string) {
-    const params = { query: msg };
-    return this.http.post(this.url + '/chat', {}, { params });
+    const body = { mensaje: msg };
+    return this.http.post(this.url + '/chat', body);
   }
 
   responder_faq(pregunta: string) {

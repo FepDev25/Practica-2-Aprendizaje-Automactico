@@ -8,7 +8,7 @@ export class SupermercadoService {
 
   constructor(private http: HttpClient) { }
 
-  apiUrl = 'http://34.10.83.87:8000';
+  apiUrl = 'http://34.10.46.216:8000';
   getPedriccion(fecha: string, nombre: string) {
     return this.http.get<any[]>(
       `${this.apiUrl}/predictPornombre/`,
