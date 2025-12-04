@@ -184,6 +184,19 @@ try:
 except Exception as e:
     print(f"Advertencia: No se pudo inicializar el servicio RAG: {e}")
     rag_service = None
+
+def convertir_numpy_a_python(obj):
+    """Convierte tipos numpy a tipos nativos de Python para serialización JSON"""
+    if isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, dict):
+        return {k: convertir_numpy_a_python(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convertir_numpy_a_python(item) for item in obj]
+    return obj
+
 class ChatInput(BaseModel):
     mensaje: str
 # Cargar modelo
@@ -564,11 +577,11 @@ Responde en español, tono profesional pero amigable.
                     respuesta=respuesta_llm.content,
                     metodo="router_accion_ejecutada",
                     tipo="accion",
-                    confianza=intencion["score"],
+                    confianza=float(intencion["score"]),
                     resultado_funcion=resultado_funcion,
                     metadata={
                         "funcion": nombre_func,
-                        "score_router": intencion["score"],
+                        "score_router": float(intencion["score"]),
                         "parametros_usados": params_extraidos
                     },
                     tiempo_procesamiento=time.time() - inicio
@@ -595,10 +608,10 @@ Responde en español, tono profesional pero amigable.
                 respuesta=intencion["respuesta"],
                 metodo="router_faq",
                 tipo="faq",
-                confianza=intencion["score"],
+                confianza=float(intencion["score"]),
                 metadata={
                     "pregunta_original": intencion.get("pregunta_original", "N/A"),
-                    "score_router": intencion["score"]
+                    "score_router": float(intencion["score"])
                 },
                 tiempo_procesamiento=time.time() - inicio
             )
@@ -607,6 +620,9 @@ Responde en español, tono profesional pero amigable.
         print(f"🔍 Usando RAG para: {mensaje}")
         
         resultado_rag = rag_service.responder_pregunta_general(mensaje)
+        
+        # Convertir todos los valores numpy a tipos nativos de Python
+        resultado_rag = convertir_numpy_a_python(resultado_rag)
         
         return ChatResponse(
             respuesta=resultado_rag["respuesta"],
