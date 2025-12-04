@@ -32,3 +32,6 @@ psycopg2-binary==2.9.10
 # Utilidades
 python-dotenv==1.0.1
 pydantic==2.10.6
+
+# WhatsApp Business API
+requests>=2.31.0
