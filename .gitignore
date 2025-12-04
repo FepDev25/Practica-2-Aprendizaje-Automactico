@@ -29,10 +29,8 @@ backend/docs
 Thumbs.db
 
 # Project specific - Large files tracked with Git LFS
-*.keras
 *.h5
 *.pkl
-*.joblib
 *.npy
 *.npz
 
@@ -60,3 +58,10 @@ dist/
 
 /modelo/notebooks/mlruns/
 mlruns/
+# Credenciales de Google Cloud - NUNCA SUBIR
+*.json
+!package.json
+!tsconfig*.json
+backend/env/
+*.zip
+*.tar.gz

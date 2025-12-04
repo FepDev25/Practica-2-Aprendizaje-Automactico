@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
+from typing import List, Dict, Optional, Tuple
 from dotenv import load_dotenv
+import numpy as np
+from functools import lru_cache
+
 from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -8,14 +12,19 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from company_info import COMPANY_INFO, FAQS
 
+# Configuración
 env_path = Path(__file__).parent / '.env'
 load_dotenv(dotenv_path=env_path)
 PROJECT_ID = os.getenv("PROJECT_ID")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 LLM_MODEL = "gemini-2.0-flash-exp"
 
+# ============================================================================
+# CLASE RAG MEJORADA
+# ============================================================================
+
 class RAGKnowledgeService:
-    # servicio RAG para responder preguntas usando knowledge base
+    """Servicio RAG para responder preguntas usando knowledge base optimizada"""
     
     def __init__(self):
         self._validar_configuracion()
@@ -24,231 +33,284 @@ class RAGKnowledgeService:
         self.llm = self._crear_llm()
         self.embeddings = self._crear_embeddings()
         
-        # Crear vector stores
+        # Vector stores
         self.vectorstore_company = None
         self.vectorstore_faqs = None
+        
+        # Cache para consultas repetidas
+        self._cache_consultas = {}
         
         # Inicializar knowledge base
         self._inicializar_knowledge_base()
         
-        print("Servicio RAG inicializado correctamente")
+        print("✅ Servicio RAG inicializado correctamente")
     
     def _validar_configuracion(self):
         if not PROJECT_ID:
-            raise ValueError("Error: PROJECT_ID no configurado")
-        
+            raise ValueError("❌ Error: PROJECT_ID no configurado")
         if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-            raise FileNotFoundError("Error: Credenciales de Google Cloud no encontradas")
+            raise FileNotFoundError("❌ Error: Credenciales de Google Cloud no encontradas")
     
     def _crear_llm(self):
         return ChatVertexAI(
             model=LLM_MODEL,
             project=PROJECT_ID,
-            temperature=0.3, 
-            max_tokens=400,
+            temperature=0.3,
+            max_tokens=500,  # Aumentado para respuestas más completas
         )
     
     def _crear_embeddings(self):
         return VertexAIEmbeddings(
-            model_name="text-embedding-005",  
+            model_name="text-embedding-005",
             project=PROJECT_ID
         )
     
-    def _crear_documentos_empresa(self) -> list[Document]:
-        # convierte la información de la empresa en documentos para el vector store
+    def _crear_documentos_empresa(self) -> List[Document]:
+        """Crea documentos optimizados con mejor estructura"""
         documentos = []
         
-        # Información general
+        # 1. Info General Estructurada
         info_general = f"""
-        Empresa: {COMPANY_INFO['nombre']}
-        Nicho: {COMPANY_INFO['nicho']}
-        Slogan: {COMPANY_INFO['slogan']}
+        INFORMACIÓN CORPORATIVA - UPS TUTI
         
-        Fundada en: {COMPANY_INFO['fundacion']}
-        Sede: {COMPANY_INFO['sede']}
+        Nombre: {COMPANY_INFO['nombre']}
+        Nicho de Mercado: {COMPANY_INFO['nicho']}
+        Lema Corporativo: {COMPANY_INFO['slogan']}
+        
+        Fundación: {COMPANY_INFO['fundacion']}
+        Ubicación: {COMPANY_INFO['sede']}
         
         Misión: {COMPANY_INFO['mision']}
         Visión: {COMPANY_INFO['vision']}
+        
+        Valores: Calidad, Innovación, Sostenibilidad, Servicio al Cliente
         """
         documentos.append(Document(
             page_content=info_general,
-            metadata={"tipo": "info_general", "categoria": "empresa"}
+            metadata={"tipo": "info_general", "categoria": "empresa", "prioridad": "alta"}
         ))
         
-        # Productos por categoría
+        # 2. Catálogo de Productos (mejorado)
         for categoria, productos in COMPANY_INFO['productos'].items():
-            productos_texto = f"Categoría: {categoria.replace('_', ' ').title()}\n\n"
-            for prod in productos:
-                productos_texto += f"- {prod['nombre']} (SKU: {prod['sku']}, Categoría: {prod['categoria']})\n"
+            categoria_limpia = categoria.replace('_', ' ').title()
             
-            documentos.append(Document(
-                page_content=productos_texto,
-                metadata={"tipo": "productos", "categoria": categoria}
-            ))
+            # Documento resumen de categoría
+            resumen = f"CATEGORÍA: {categoria_limpia}\n\n"
+            resumen += f"Total de productos: {len(productos)}\n\n"
+            
+            # Documentos individuales por producto (mejor para búsquedas específicas)
+            for prod in productos:
+                prod_detalle = f"""
+                PRODUCTO: {prod['nombre']}
+                SKU: {prod['sku']}
+                Categoría: {prod['categoria']}
+                Línea: {categoria_limpia}
+                
+                Descripción: Producto premium de UPS Tuti disponible para distribución mayorista.
+                """
+                
+                documentos.append(Document(
+                    page_content=prod_detalle,
+                    metadata={
+                        "tipo": "producto",
+                        "categoria": categoria,
+                        "sku": prod['sku'],
+                        "nombre": prod['nombre'],
+                        "prioridad": "alta"
+                    }
+                ))
         
-        # Servicios
-        servicios_texto = "Servicios que ofrece UPS Tuti:\n\n"
+        # 3. Servicios
+        servicios_texto = "SERVICIOS DISPONIBLES - UPS TUTI\n\n"
         for i, servicio in enumerate(COMPANY_INFO['servicios'], 1):
             servicios_texto += f"{i}. {servicio}\n"
+        servicios_texto += "\n\nTodos nuestros servicios están diseñados para mayoristas y distribuidores."
         
         documentos.append(Document(
             page_content=servicios_texto,
-            metadata={"tipo": "servicios", "categoria": "empresa"}
+            metadata={"tipo": "servicios", "categoria": "empresa", "prioridad": "media"}
         ))
         
-        # Horarios
+        # 4. Horarios (estructurado)
         horarios_texto = f"""
-        Horarios de atención:
+        HORARIOS DE OPERACIÓN - UPS TUTI
         
-        Atención al cliente: {COMPANY_INFO['horario']['atencion_cliente']}
-        Operaciones de almacén: {COMPANY_INFO['horario']['operaciones_almacen']}
-        Soporte técnico: {COMPANY_INFO['horario']['soporte_tecnico']}
+        🕐 Atención al Cliente: {COMPANY_INFO['horario']['atencion_cliente']}
+        📦 Operaciones de Almacén: {COMPANY_INFO['horario']['operaciones_almacen']}
+        🔧 Soporte Técnico: {COMPANY_INFO['horario']['soporte_tecnico']}
+        
+        Nota: Para urgencias fuera de horario, contactar vía WhatsApp.
         """
         documentos.append(Document(
             page_content=horarios_texto,
-            metadata={"tipo": "horarios", "categoria": "operacion"}
+            metadata={"tipo": "horarios", "categoria": "operacion", "prioridad": "alta"}
         ))
         
-        # Contacto
+        # 5. Contacto (expandido)
         contacto_texto = f"""
-        Información de contacto de UPS Tuti:
+        INFORMACIÓN DE CONTACTO - UPS TUTI
         
-        Email de ventas: {COMPANY_INFO['contacto']['email_ventas']}
-        Email de soporte: {COMPANY_INFO['contacto']['email_soporte']}
-        Teléfono: {COMPANY_INFO['contacto']['telefono']}
-        WhatsApp: {COMPANY_INFO['contacto']['whatsapp']}
-        Dirección: {COMPANY_INFO['contacto']['direccion']}
+        📧 Ventas: {COMPANY_INFO['contacto']['email_ventas']}
+        🛠️ Soporte: {COMPANY_INFO['contacto']['email_soporte']}
+        📞 Teléfono: {COMPANY_INFO['contacto']['telefono']}
+        💬 WhatsApp: {COMPANY_INFO['contacto']['whatsapp']}
+        📍 Dirección Física: {COMPANY_INFO['contacto']['direccion']}
+        
+        Preferencia de contacto: WhatsApp para consultas rápidas, Email para pedidos formales.
         """
         documentos.append(Document(
             page_content=contacto_texto,
-            metadata={"tipo": "contacto", "categoria": "empresa"}
+            metadata={"tipo": "contacto", "categoria": "empresa", "prioridad": "alta"}
         ))
         
-        # Hitos históricos
-        hitos_texto = "Historia y logros de UPS Tuti:\n\n"
+        # 6. Historia
+        hitos_texto = "HISTORIA Y LOGROS - UPS TUTI\n\n"
         for hito in COMPANY_INFO['hitos']:
-            hitos_texto += f"• {hito}\n"
+            hitos_texto += f"✓ {hito}\n"
         
         documentos.append(Document(
             page_content=hitos_texto,
-            metadata={"tipo": "historia", "categoria": "empresa"}
+            metadata={"tipo": "historia", "categoria": "empresa", "prioridad": "baja"}
         ))
         
-        # Políticas
-        politicas_texto = "Políticas de UPS Tuti:\n\n"
+        # 7. Políticas
+        politicas_texto = "POLÍTICAS EMPRESARIALES - UPS TUTI\n\n"
         for nombre_politica, descripcion in COMPANY_INFO['politicas'].items():
-            politicas_texto += f"{nombre_politica.replace('_', ' ').title()}: {descripcion}\n\n"
+            politicas_texto += f"• {nombre_politica.replace('_', ' ').title()}:\n  {descripcion}\n\n"
         
         documentos.append(Document(
             page_content=politicas_texto,
-            metadata={"tipo": "politicas", "categoria": "empresa"}
+            metadata={"tipo": "politicas", "categoria": "empresa", "prioridad": "media"}
         ))
         
-        # Diferenciadores
-        diferenciadores_texto = "Ventajas competitivas de UPS Tuti:\n\n"
+        # 8. Ventajas Competitivas
+        diferenciadores_texto = "VENTAJAS COMPETITIVAS - UPS TUTI\n\n"
         for i, dif in enumerate(COMPANY_INFO['diferenciadores'], 1):
             diferenciadores_texto += f"{i}. {dif}\n"
         
         documentos.append(Document(
             page_content=diferenciadores_texto,
-            metadata={"tipo": "diferenciadores", "categoria": "empresa"}
+            metadata={"tipo": "diferenciadores", "categoria": "empresa", "prioridad": "media"}
         ))
         
-        # Proveedores
-        proveedores_texto = "Proveedores de UPS Tuti:\n\n"
+        # 9. Red de Proveedores
+        proveedores_texto = "RED DE PROVEEDORES - UPS TUTI\n\n"
         for nombre_prov, info in COMPANY_INFO['proveedores'].items():
-            proveedores_texto += f"{nombre_prov} (Prioridad {info['prioridad']}): {', '.join(info['productos'])}\n"
+            proveedores_texto += f"• {nombre_prov} (Prioridad: {info['prioridad']})\n"
+            proveedores_texto += f"  Productos: {', '.join(info['productos'])}\n\n"
         
         documentos.append(Document(
             page_content=proveedores_texto,
-            metadata={"tipo": "proveedores", "categoria": "operacion"}
+            metadata={"tipo": "proveedores", "categoria": "operacion", "prioridad": "baja"}
         ))
         
         return documentos
     
-    def _crear_documentos_faqs(self) -> list[Document]:
-        # convierte las FAQs en documentos para el vector store
+    def _crear_documentos_faqs(self) -> List[Document]:
+        """Crea documentos de FAQs con mejor contexto"""
         documentos = []
         
         for i, faq in enumerate(FAQS):
-            # Combinar pregunta y respuesta para mejor contexto
-            contenido = f"Pregunta: {faq['pregunta']}\n\nRespuesta: {faq['respuesta']}"
+            # Contexto enriquecido
+            contenido = f"""
+            PREGUNTA FRECUENTE #{i+1}
+            
+            Pregunta: {faq['pregunta']}
+            
+            Respuesta: {faq['respuesta']}
+            
+            Categoría: FAQ | Atención al Cliente
+            """
             
             documentos.append(Document(
                 page_content=contenido,
                 metadata={
                     "tipo": "faq",
                     "pregunta": faq['pregunta'],
-                    "id": i
+                    "id": i,
+                    "prioridad": "alta"
                 }
             ))
         
         return documentos
     
     def _inicializar_knowledge_base(self):
-        # inicializa los vector stores con los documentos de la empresa y FAQs
+        """Inicializa vectorstores con manejo de errores"""
         try:
-            # Crear documentos
             docs_empresa = self._crear_documentos_empresa()
             docs_faqs = self._crear_documentos_faqs()
             
-            # Crear vector stores con FAISS
-            print("Creando vector store de información de empresa...")
+            print(f"📄 Creando {len(docs_empresa)} documentos de empresa...")
             self.vectorstore_company = FAISS.from_documents(
                 docs_empresa,
                 self.embeddings
             )
             
-            print("Creando vector store de FAQs...")
+            print(f"❓ Creando {len(docs_faqs)} documentos de FAQs...")
             self.vectorstore_faqs = FAISS.from_documents(
                 docs_faqs,
                 self.embeddings
             )
             
-            print(f"Knowledge base inicializada: {len(docs_empresa)} docs de empresa, {len(docs_faqs)} FAQs")
+            print(f"✅ Knowledge base lista: {len(docs_empresa)} docs empresa, {len(docs_faqs)} FAQs")
             
         except Exception as e:
-            print(f"Error al inicializar knowledge base: {e}")
+            print(f"❌ Error al inicializar knowledge base: {e}")
             raise
     
-    def responder_faq(self, pregunta_usuario: str, k: int = 2) -> dict:
-        # responde a una pregunta buscando en las FAQs usando RAG
-      
+    @lru_cache(maxsize=100)
+    def _busqueda_con_cache(self, consulta: str, tipo: str, k: int) -> Tuple:
+        """Búsqueda con cache para consultas repetidas"""
+        vectorstore = self.vectorstore_faqs if tipo == "faq" else self.vectorstore_company
+        docs = vectorstore.similarity_search_with_score(consulta, k=k)
+        # Convertir a tupla para hacer hashable
+        return tuple((doc.page_content, doc.metadata, score) for doc, score in docs)
+    
+    def responder_faq(self, pregunta_usuario: str, k: int = 3) -> dict:
+        """Responde FAQs con búsqueda mejorada"""
         try:
-            # Buscar FAQs similares
-            docs_relevantes = self.vectorstore_faqs.similarity_search(
-                pregunta_usuario,
-                k=k
-            )
+            # Búsqueda con scores
+            resultados = self._busqueda_con_cache(pregunta_usuario, "faq", k)
             
-            if not docs_relevantes:
+            if not resultados or resultados[0][2] < 0.5:  # Score mínimo
                 return {
-                    "respuesta": "Lo siento, no encontré información específica sobre esa pregunta. ¿Podrías reformularla o contactar a nuestro soporte?",
+                    "respuesta": "No encontré una FAQ específica para tu consulta. ¿Podrías reformularla? También puedes contactar a nuestro equipo de soporte.",
                     "fuentes": [],
-                    "confianza": "baja"
+                    "confianza": "baja",
+                    "sugerencia": f"Escribe a: {COMPANY_INFO['contacto']['email_soporte']}"
                 }
             
-            # Construir contexto con las FAQs encontradas
-            contexto = "\n\n".join([doc.page_content for doc in docs_relevantes])
+            # Construir contexto con scores
+            contexto_items = []
+            fuentes = []
+            for content, metadata, score in resultados[:k]:
+                if score > 0.5:  # Filtrar por relevancia
+                    contexto_items.append(f"[Relevancia: {score:.2f}]\n{content}")
+                    fuentes.append({
+                        "pregunta": metadata.get('pregunta', 'N/A'),
+                        "relevancia": round(score, 2)
+                    })
             
-            # Crear prompt para el LLM
+            contexto = "\n\n---\n\n".join(contexto_items)
+            
+            # Prompt mejorado
             template = """
-Eres un asistente de atención al cliente de UPS Tuti, un distribuidor mayorista de snacks saludables.
+Eres un asistente experto de UPS Tuti, distribuidor mayorista de snacks saludables en Ecuador.
 
-Responde la pregunta del usuario usando ÚNICAMENTE la información de las siguientes FAQs:
-
+CONTEXTO DE FAQs RELEVANTES:
 {contexto}
 
-Pregunta del usuario: {pregunta}
+PREGUNTA DEL USUARIO: {pregunta}
 
 INSTRUCCIONES:
-1. Si la información está en las FAQs, responde de manera clara y amigable
-2. Cita la información relevante de las FAQs
-3. Si la pregunta NO está relacionada con las FAQs proporcionadas, di que no tienes esa información específica y sugiere contactar al equipo
-4. Mantén un tono profesional pero cercano
-5. Sé conciso (máximo 4-5 oraciones)
+1. Responde usando la información de las FAQs más relevantes
+2. Si hay múltiples FAQs relevantes, sintetiza la información
+3. Sé específico con datos concretos (horarios, precios, políticas)
+4. Si la pregunta no está completamente cubierta, indica qué información adicional necesitas
+5. Mantén un tono profesional pero cercano y amigable
+6. Máximo 5 oraciones, directo al punto
 
-Respuesta:
+RESPUESTA:
             """
             
             prompt = ChatPromptTemplate.from_template(template)
@@ -259,63 +321,69 @@ Respuesta:
                 "pregunta": pregunta_usuario
             })
             
-            # Extraer preguntas de las FAQs relevantes
-            fuentes = [doc.metadata.get('pregunta', 'N/A') for doc in docs_relevantes]
-            
             return {
                 "respuesta": respuesta.strip(),
                 "fuentes": fuentes,
-                "confianza": "alta",
-                "num_fuentes": len(docs_relevantes)
+                "confianza": "alta" if resultados[0][2] > 0.7 else "media",
+                "num_fuentes": len(fuentes),
+                "mejor_score": round(resultados[0][2], 2)
             }
             
         except Exception as e:
-            print(f"Error en responder_faq: {e}")
+            print(f"❌ Error en responder_faq: {e}")
             return {
-                "respuesta": f"Disculpa, ocurrió un error al procesar tu pregunta. Por favor contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}",
+                "respuesta": f"Disculpa, ocurrió un error técnico. Contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}",
                 "fuentes": [],
                 "confianza": "error"
             }
     
-    def responder_sobre_empresa(self, consulta_usuario: str, k: int = 3) -> dict:
-        #
-        # responde preguntas generales sobre la empresa usando RAG
-        
+    def responder_sobre_empresa(self, consulta_usuario: str, k: int = 4) -> dict:
+        """Responde sobre la empresa con búsqueda optimizada"""
         try:
-            # Buscar documentos relevantes
-            docs_relevantes = self.vectorstore_company.similarity_search(
-                consulta_usuario,
-                k=k
-            )
+            resultados = self._busqueda_con_cache(consulta_usuario, "empresa", k)
             
-            if not docs_relevantes:
+            if not resultados or resultados[0][2] < 0.4:
                 return {
-                    "respuesta": "No encontré información específica sobre eso. ¿Podrías ser más específico?",
+                    "respuesta": "No encontré información específica sobre esa consulta en nuestra base de conocimiento. ¿Podrías ser más específico o reformular tu pregunta?",
                     "fuentes": [],
                     "confianza": "baja"
                 }
             
-            # Construir contexto
-            contexto = "\n\n---\n\n".join([doc.page_content for doc in docs_relevantes])
+            # Construir contexto enriquecido
+            contexto_items = []
+            fuentes = []
             
-            # Crear prompt
+            for content, metadata, score in resultados:
+                if score > 0.4:
+                    tipo_doc = metadata.get('tipo', 'general')
+                    contexto_items.append(f"[Tipo: {tipo_doc} | Relevancia: {score:.2f}]\n{content}")
+                    fuentes.append({
+                        "tipo": tipo_doc,
+                        "categoria": metadata.get('categoria', 'N/A'),
+                        "relevancia": round(score, 2)
+                    })
+            
+            contexto = "\n\n---\n\n".join(contexto_items)
+            
+            # Prompt mejorado
             template = """
-Eres un asistente experto de UPS Tuti, un distribuidor mayorista de snacks saludables en Ecuador.
+Eres un asistente experto de UPS Tuti, con conocimiento profundo de la empresa.
 
-Usa la siguiente información de la empresa para responder la consulta del usuario:
-
+INFORMACIÓN CORPORATIVA RELEVANTE:
 {contexto}
 
-Consulta del usuario: {consulta}
+CONSULTA DEL USUARIO: {consulta}
 
 INSTRUCCIONES:
 1. Responde usando ÚNICAMENTE la información proporcionada
-2. Sé preciso y específico
-3. Si la información no está en el contexto, dilo claramente
-4. Mantén un tono profesional y amigable
-5. Incluye detalles relevantes (fechas, números, nombres) cuando estén disponibles
+2. Sé preciso con datos específicos (fechas, números, nombres, SKUs)
+3. Si mencionas productos, incluye SKUs cuando estén disponibles
+4. Si la información está incompleta, indícalo claramente
+5. Prioriza la información más relevante (basada en los scores)
+6. Tono profesional, conciso y útil
+7. Máximo 6 oraciones
 
-Respuesta:
+RESPUESTA:
             """
             
             prompt = ChatPromptTemplate.from_template(template)
@@ -326,55 +394,240 @@ Respuesta:
                 "consulta": consulta_usuario
             })
             
-            # Extraer tipos de documentos usados
-            tipos_docs = [doc.metadata.get('tipo', 'desconocido') for doc in docs_relevantes]
-            
             return {
                 "respuesta": respuesta.strip(),
-                "fuentes": tipos_docs,
-                "confianza": "alta",
-                "num_documentos": len(docs_relevantes)
+                "fuentes": fuentes,
+                "confianza": "alta" if resultados[0][2] > 0.7 else "media",
+                "num_documentos": len(fuentes),
+                "mejor_score": round(resultados[0][2], 2)
             }
             
         except Exception as e:
-            print(f"Error en responder_sobre_empresa: {e}")
+            print(f"❌ Error en responder_sobre_empresa: {e}")
             return {
-                "respuesta": f"Ocurrió un error al procesar tu consulta. Contacta a nuestro equipo: {COMPANY_INFO['contacto']['email_soporte']}",
+                "respuesta": f"Error al procesar tu consulta. Contacta: {COMPANY_INFO['contacto']['email_soporte']}",
                 "fuentes": [],
                 "confianza": "error"
             }
     
     def responder_pregunta_general(self, pregunta: str) -> dict:
-        #
-        # Método principal que decide si buscar en FAQs o información general de empresa
-        #
-        # Args:
-        #     pregunta: Pregunta del usuario
-        #     
-        # Returns:
-        #     dict con respuesta y metadata
-        #
-        # Palabras clave que sugieren búsqueda en FAQs
-        keywords_faq = ['cómo', 'cuándo', 'dónde', 'horario', 'contacto', 'precio', 
-                        'envío', 'devolución', 'pago', 'cliente']
+        """Router inteligente que decide dónde buscar"""
+        
+        # Análisis de keywords mejorado
+        keywords_faq = {
+            'preguntas': ['cómo', 'cuándo', 'dónde', 'por qué', 'quién', 'cuál'],
+            'operaciones': ['horario', 'contacto', 'teléfono', 'email', 'dirección'],
+            'comercial': ['precio', 'costo', 'pagar', 'comprar', 'pedido'],
+            'logística': ['envío', 'entrega', 'devolución', 'garantía'],
+            'soporte': ['problema', 'ayuda', 'soporte', 'reclamo']
+        }
+        
+        keywords_empresa = {
+            'corporativo': ['misión', 'visión', 'historia', 'fundación'],
+            'productos': ['producto', 'sku', 'catálogo', 'snack'],
+            'servicios': ['servicio', 'ofrece', 'provee'],
+            'partners': ['proveedor', 'socio', 'alianza']
+        }
         
         pregunta_lower = pregunta.lower()
-        es_faq = any(keyword in pregunta_lower for keyword in keywords_faq)
         
-        if es_faq:
-            resultado = self.responder_faq(pregunta)
+        # Contar matches
+        score_faq = sum(
+            1 for categoria in keywords_faq.values()
+            for keyword in categoria
+            if keyword in pregunta_lower
+        )
+        
+        score_empresa = sum(
+            1 for categoria in keywords_empresa.values()
+            for keyword in categoria
+            if keyword in pregunta_lower
+        )
+        
+        # Decisión inteligente
+        if score_faq > score_empresa:
+            resultado = self.responder_faq(pregunta, k=3)
             resultado['tipo_busqueda'] = 'faq'
-        else:
-            resultado = self.responder_sobre_empresa(pregunta)
+            resultado['razon'] = 'Consulta operativa/FAQ detectada'
+        elif score_empresa > score_faq:
+            resultado = self.responder_sobre_empresa(pregunta, k=4)
             resultado['tipo_busqueda'] = 'empresa'
+            resultado['razon'] = 'Consulta corporativa/productos detectada'
+        else:
+            # Búsqueda híbrida
+            resultado_faq = self.responder_faq(pregunta, k=2)
+            resultado_empresa = self.responder_sobre_empresa(pregunta, k=2)
+            
+            # Seleccionar mejor resultado
+            if resultado_faq.get('mejor_score', 0) > resultado_empresa.get('mejor_score', 0):
+                resultado = resultado_faq
+                resultado['tipo_busqueda'] = 'faq'
+            else:
+                resultado = resultado_empresa
+                resultado['tipo_busqueda'] = 'empresa'
+            
+            resultado['razon'] = 'Búsqueda híbrida (ambigüedad detectada)'
         
         return resultado
+
+
+# ============================================================================
+# ROUTER SEMÁNTICO MEJORADO
+# ============================================================================
+
+class UnifiedSemanticRouter:
+    """Router optimizado con mejores umbrales y caching"""
+    
+    def __init__(self, embeddings, functions_data: List[Dict], faqs_data: List[Dict]):
+        self.embeddings = embeddings
+        self.functions_data = functions_data
+        self.faqs_data = faqs_data
+        
+        # Pre-calcular embeddings
+        self.func_texts = [
+            f"{f['id']} {f['docstring']} {' '.join(f.get('keywords', []))}"
+            for f in functions_data
+        ]
+        self.faq_texts = [f["text"] for f in faqs_data]
+        
+        print("🔄 Vectorizando funciones y FAQs...")
+        self.func_embeddings = np.array(self.embeddings.embed_documents(self.func_texts))
+        self.faq_embeddings = np.array(self.embeddings.embed_documents(self.faq_texts))
+        print(f"✅ {len(self.func_embeddings)} funciones y {len(self.faq_embeddings)} FAQs vectorizadas")
+        
+        # Cache
+        self._cache = {}
+    
+    @staticmethod
+    def _similitud_coseno(vec1: np.ndarray, vec2: np.ndarray) -> float:
+        """Calcula similitud coseno optimizada"""
+        dot = np.dot(vec1, vec2)
+        norm = np.linalg.norm(vec1) * np.linalg.norm(vec2)
+        return float(dot / norm) if norm > 0 else 0.0
+    
+    def buscar_intencion(
+        self, 
+        query: str, 
+        umbral_func: float = 0.55,
+        umbral_faq: float = 0.50
+    ) -> Dict:
+        """Busca intención con umbrales diferenciados"""
+        
+        # Check cache
+        if query in self._cache:
+            return self._cache[query]
+        
+        # Embeddings de la consulta
+        query_emb = np.array(self.embeddings.embed_query(query))
+        
+        # Calcular similitudes
+        func_scores = [
+            self._similitud_coseno(query_emb, emb) 
+            for emb in self.func_embeddings
+        ]
+        best_func_idx = int(np.argmax(func_scores))
+        best_func_score = float(func_scores[best_func_idx])
+        
+        faq_scores = [
+            self._similitud_coseno(query_emb, emb) 
+            for emb in self.faq_embeddings
+        ]
+        best_faq_idx = int(np.argmax(faq_scores))
+        best_faq_score = float(faq_scores[best_faq_idx])
+        
+        # Decisión con umbrales diferenciados
+        resultado = None
+        
+        if best_func_score < umbral_func and best_faq_score < umbral_faq:
+            resultado = {
+                "tipo": "desconocido",
+                "score_func": best_func_score,
+                "score_faq": best_faq_score,
+                "mensaje": "No se detectó intención clara"
+            }
+        
+        elif best_func_score >= umbral_func and best_func_score >= best_faq_score:
+            resultado = {
+                "tipo": "accion",
+                "funcion": self.functions_data[best_func_idx]["id"],
+                "score": best_func_score,
+                "metadata": self.functions_data[best_func_idx]
+            }
+        
+        else:
+            resultado = {
+                "tipo": "faq",
+                "respuesta": self.faqs_data[best_faq_idx]["answer"],
+                "score": best_faq_score,
+                "pregunta_original": self.faqs_data[best_faq_idx]["text"]
+            }
+        
+        # Guardar en cache
+        self._cache[query] = resultado
+        return resultado
+
+
+# ============================================================================
+# FUNCIONES Y CONFIGURACIÓN
+# ============================================================================
+
+def crear_router_integrado(rag_service: RAGKnowledgeService) -> UnifiedSemanticRouter:
+    """Factory para crear router con configuración mejorada"""
+    
+    FUNCTIONS = [
+        {
+            "id": "predecir_stock",
+            "docstring": "predecir inventario stock futuro días restantes agotamiento",
+            "keywords": ["predecir", "stock", "inventario", "quedan", "días"]
+        },
+        {
+            "id": "generar_alerta",
+            "docstring": "crear alerta notificación bajo stock crítico",
+            "keywords": ["alerta", "notificar", "avisar", "bajo"]
+        },
+        {
+            "id": "buscar_producto",
+            "docstring": "buscar producto SKU código encontrar consultar",
+            "keywords": ["buscar", "producto", "sku", "código", "encontrar"]
+        },
+        {
+            "id": "enviar_correo",
+            "docstring": "enviar mandar correo email redactar mensaje electrónico notificar",
+            "keywords": ["correo", "email", "enviar", "mensaje", "notificar"]
+        }
+    ]
+    
+    FAQS = [
+        {
+            "text": "horario atención servicio clientes abierto cerrado",
+            "answer": "Atención al cliente: Lunes a Viernes 8AM-6PM"
+        },
+        {
+            "text": "contacto teléfono whatsapp número llamar",
+            "answer": f"WhatsApp: {COMPANY_INFO['contacto']['whatsapp']}"
+        },
+        {
+            "text": "dirección ubicación dónde están oficina",
+            "answer": f"Dirección: {COMPANY_INFO['contacto']['direccion']}"
+        },
+        {
+            "text": "email correo ventas contactar escribir",
+            "answer": f"Ventas: {COMPANY_INFO['contacto']['email_ventas']}"
+        }
+    ]
+    
+    return UnifiedSemanticRouter(rag_service.embeddings, FUNCTIONS, FAQS)
+
+
+# ============================================================================
+# SINGLETON PATTERN
+# ============================================================================
 
 _rag_service = None
 
 def get_rag_service() -> RAGKnowledgeService:
+    """Obtiene instancia singleton del servicio RAG"""
     global _rag_service
     if _rag_service is None:
         _rag_service = RAGKnowledgeService()
     return _rag_service
-

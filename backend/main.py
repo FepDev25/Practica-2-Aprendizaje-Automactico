@@ -13,8 +13,136 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from model.semantic_engine import SemanticRouter
 from model.database import SessionLocal
+from model.registro import Registro
+from dias_stock_service import DiasStockService
+from rag_service import get_rag_service, crear_router_integrado
+from regex_handlers import procesar_mensaje_simple
+
+from fastapi import FastAPI, HTTPException, Depends
+from pydantic import BaseModel, Field, validator
+from typing import Optional, Dict, Any, List
+from sqlalchemy.orm import Session
+import time
+import re
+from model.funciones import FUNCIONES_DISPONIBLES
+
+
+from rag_service import get_rag_service, crear_router_integrado
+from company_info import COMPANY_INFO
+
+def extraer_parametros_del_mensaje(mensaje: str) -> Dict:
+    """
+    Extrae parámetros útiles del mensaje del usuario
+    
+    Returns:
+        Dict con parámetros encontrados
+    """
+    params = {}
+    
+    # Extraer SKU
+    sku_match = re.search(r'SKU[:\s-]*(\w+)', mensaje, re.IGNORECASE)
+    if sku_match:
+        params['sku'] = sku_match.group(1)
+    
+    # Extraer emails
+    emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', mensaje)
+    if emails:
+        params['destinatarios'] = emails
+    
+    # Extraer números (podrían ser días, cantidades, etc.)
+    numeros = re.findall(r'\b(\d+)\s*días?\b', mensaje, re.IGNORECASE)
+    if numeros:
+        params['dias'] = int(numeros[0])
+    
+    # Detectar palabras clave de urgencia
+    if any(palabra in mensaje.lower() for palabra in ['urgente', 'crítico', 'inmediato']):
+        params['urgencia'] = 'alta'
+    
+    # Detectar si pide envío de email
+    if any(palabra in mensaje.lower() for palabra in ['enviar', 'mandar', 'correo', 'email', 'notificar']):
+        params['enviar_email'] = True
+    
+    return params
+
+
+def procesar_mensaje_simple(mensaje: str) -> Optional[Dict]:
+    """
+    Procesa mensajes simples con regex (Nivel 1)
+    """
+    mensaje_lower = mensaje.lower().strip()
+    
+    # Saludos
+    if re.match(r'^(hola|buenos días|buenas tardes|buenas noches|hey|hi)$', mensaje_lower):
+        return {
+            "respuesta": f"¡Hola! 👋 Soy el asistente virtual de UPS Tuti. Puedo ayudarte con:\n\n" +
+                        "• Predicciones de stock\n" +
+                        "• Alertas de inventario\n" +
+                        "• Búsqueda de productos\n" +
+                        "• Envío de reportes\n\n" +
+                        "¿En qué puedo ayudarte?",
+            "tipo": "saludo"
+        }
+    
+    # Despedidas
+    if re.match(r'^(adiós|chao|hasta luego|bye|nos vemos)$', mensaje_lower):
+        return {
+            "respuesta": "¡Hasta pronto! 👋 Si necesitas algo más, aquí estaré.",
+            "tipo": "despedida"
+        }
+    
+    # Agradecimientos
+    if re.match(r'^(gracias|muchas gracias|thanks|thank you)$', mensaje_lower):
+        return {
+            "respuesta": "¡De nada! 😊 ¿Hay algo más en lo que pueda ayudarte?",
+            "tipo": "agradecimiento"
+        }
+    
+    # Help
+    if re.match(r'^(ayuda|help|qué puedes hacer|opciones)$', mensaje_lower):
+        return {
+            "respuesta": "Puedo ayudarte con:\n\n" +
+                        "📊 **Predicciones**: 'predecir stock del SKU-123'\n" +
+                        "🚨 **Alertas**: 'generar alerta de bajo stock'\n" +
+                        "🔍 **Búsquedas**: 'buscar producto galletas'\n" +
+                        "📧 **Reportes**: 'enviar reporte a gerencia@upstuti.com'\n\n" +
+                        "También puedo responder preguntas sobre la empresa.",
+            "tipo": "ayuda"
+        }
+    
+    return None
+
+
+class ChatInput(BaseModel):
+    mensaje: str = Field(..., min_length=1, max_length=500, description="Mensaje del usuario")
+    usuario_id: Optional[str] = Field(None, description="ID del usuario para tracking")
+    contexto: Optional[Dict[str, Any]] = Field(None, description="Contexto adicional")
+    
+    @validator('mensaje')
+    def mensaje_no_vacio(cls, v):
+        if not v.strip():
+            raise ValueError('El mensaje no puede estar vacío')
+        return v.strip()
+
+
+class ChatResponse(BaseModel):
+    respuesta: str
+    metodo: str
+    tipo: Optional[str] = None
+    confianza: Optional[float] = None
+    fuentes: Optional[List] = None
+    resultado_funcion: Optional[Dict] = None
+    metadata: Optional[Dict] = None
+    tiempo_procesamiento: Optional[float] = None
+
+
+class ErrorResponse(BaseModel):
+    error: str
+    detalle: Optional[str] = None
+    codigo: str
+    timestamp: str
 
 app = FastAPI()
+dias_stock_service = DiasStockService()
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,8 +163,14 @@ mis_faqs = [
     {"text": "horario atencion hora abren", "answer": "Atendemos de 9 a 18hs."},
     {"text": "precio costo valor", "answer": "Los precios dependen del catálogo actual."}
 ]
+  
+        
+
 router_engine = SemanticRouter(mis_funciones, mis_faqs)
 # Inicializar servicio LLM
+rag_service = get_rag_service()
+router = crear_router_integrado(rag_service)
+
 try:
     llm_service = get_llm_service()
 except Exception as e:
@@ -50,7 +184,8 @@ try:
 except Exception as e:
     print(f"Advertencia: No se pudo inicializar el servicio RAG: {e}")
     rag_service = None
-
+class ChatInput(BaseModel):
+    mensaje: str
 # Cargar modelo
 modelo = ModeloStockKeras()
 def get_db():
@@ -331,12 +466,175 @@ def reentrenar_modelo():
             detail=f"Error durante el reentrenamiento: {str(e)}"
         )
 
-@app.post("/chat")
-async def procesar_mensaje(query: str = Query(...)):
-    resultado = router_engine.buscar_intencion(query)
-    return resultado
+@app.post("/chat", response_model=ChatResponse, tags=["Chat"])
+async def chat_endpoint(
+    data: ChatInput,
+    db: Session = Depends(get_db)
+):
+    """
+    🤖 Endpoint principal de chat con routing inteligente de 3 niveles
+    """
+    
+    inicio = time.time()
+    mensaje = data.mensaje
+    
+    try:
+        # NIVEL 1: REGEX - Respuestas instantáneas
+        respuesta_simple = procesar_mensaje_simple(mensaje)
+        
+        if respuesta_simple:
+            return ChatResponse(
+                respuesta=respuesta_simple["respuesta"],
+                metodo="regex",
+                tipo=respuesta_simple["tipo"],
+                confianza=1.0,
+                tiempo_procesamiento=time.time() - inicio
+            )
+        
+        # NIVEL 2: ROUTER SEMÁNTICO - Detección de intenciones
+        intencion = router.buscar_intencion(
+            mensaje,
+            umbral_func=0.60,
+            umbral_faq=0.55
+        )
+        
+        # CASO 2A: ACCIÓN DETECTADA → Ejecutar función con BD
+        if intencion["tipo"] == "accion" and intencion["score"] > 0.65:
+            nombre_func = intencion["funcion"]
+            
+            if nombre_func not in FUNCIONES_DISPONIBLES:
+                raise HTTPException(
+                    status_code=501,
+                    detail=f"La función '{nombre_func}' no está implementada"
+                )
+            
+            try:
+                # Extraer parámetros del mensaje
+                params_extraidos = extraer_parametros_del_mensaje(mensaje)
+                
+                # Combinar con params del request
+                if data.contexto:
+                    params_extraidos.update(data.contexto)
+                
+                print(f"🎯 Ejecutando función: {nombre_func}")
+                print(f"📋 Parámetros: {params_extraidos}")
+                
+                # EJECUTAR FUNCIÓN REAL CON BD
+                resultado_funcion = FUNCIONES_DISPONIBLES[nombre_func](
+                    mensaje=mensaje,
+                    db=db,
+                    params=params_extraidos
+                )
+                
+                print(f"✅ Función ejecutada: {resultado_funcion.get('exito', 'N/A')}")
+                
+                # Verificar si la función fue exitosa
+                if not resultado_funcion.get('exito', True):
+                    return ChatResponse(
+                        respuesta=resultado_funcion.get('mensaje', resultado_funcion.get('error', 'Error desconocido')),
+                        metodo="router_accion_error",
+                        tipo="error",
+                        resultado_funcion=resultado_funcion,
+                        tiempo_procesamiento=time.time() - inicio
+                    )
+                
+                # Generar explicación en lenguaje natural con LLM
+                prompt_explicacion = f"""
+Eres un asistente de UPS Tuti. El usuario solicitó: "{mensaje}"
 
-# RAG Endpoints
+Se ejecutó la función: {nombre_func}
+
+Resultado de la función:
+{resultado_funcion}
+
+INSTRUCCIONES:
+1. Explica de forma clara y profesional qué se hizo
+2. Resume los resultados principales (2-3 puntos clave)
+3. Si hay alertas o problemas, destácalos
+4. Sugiere próximos pasos si es relevante
+5. Máximo 5 oraciones
+6. Usa emojis sutilmente para claridad visual
+
+Responde en español, tono profesional pero amigable.
+                """
+                
+                respuesta_llm = rag_service.llm.invoke(prompt_explicacion)
+                
+                return ChatResponse(
+                    respuesta=respuesta_llm.content,
+                    metodo="router_accion_ejecutada",
+                    tipo="accion",
+                    confianza=intencion["score"],
+                    resultado_funcion=resultado_funcion,
+                    metadata={
+                        "funcion": nombre_func,
+                        "score_router": intencion["score"],
+                        "parametros_usados": params_extraidos
+                    },
+                    tiempo_procesamiento=time.time() - inicio
+                )
+            
+            except Exception as e:
+                print(f"❌ Error ejecutando {nombre_func}: {e}")
+                
+                return ChatResponse(
+                    respuesta=f"Ocurrió un error al procesar tu solicitud. " +
+                              f"Por favor intenta de nuevo o contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}",
+                    metodo="router_accion_error",
+                    tipo="error",
+                    metadata={
+                        "error": str(e),
+                        "funcion": nombre_func
+                    },
+                    tiempo_procesamiento=time.time() - inicio
+                )
+        
+        # CASO 2B: FAQ DETECTADA → Respuesta directa
+        if intencion["tipo"] == "faq" and intencion["score"] > 0.60:
+            return ChatResponse(
+                respuesta=intencion["respuesta"],
+                metodo="router_faq",
+                tipo="faq",
+                confianza=intencion["score"],
+                metadata={
+                    "pregunta_original": intencion.get("pregunta_original", "N/A"),
+                    "score_router": intencion["score"]
+                },
+                tiempo_procesamiento=time.time() - inicio
+            )
+        
+        # NIVEL 3: RAG - Búsqueda contextual avanzada
+        print(f"🔍 Usando RAG para: {mensaje}")
+        
+        resultado_rag = rag_service.responder_pregunta_general(mensaje)
+        
+        return ChatResponse(
+            respuesta=resultado_rag["respuesta"],
+            metodo="rag",
+            tipo=resultado_rag.get("tipo_busqueda", "general"),
+            confianza=resultado_rag.get("confianza"),
+            fuentes=resultado_rag.get("fuentes"),
+            metadata={
+                "num_fuentes": resultado_rag.get("num_fuentes", 0),
+                "mejor_score": resultado_rag.get("mejor_score"),
+                "razon": resultado_rag.get("razon")
+            },
+            tiempo_procesamiento=time.time() - inicio
+        )
+    
+    except HTTPException as he:
+        raise he
+    
+    except Exception as e:
+        print(f"❌ Error general en chat_endpoint: {e}")
+        
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno del servidor. Contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}"
+        )
+
+
+
 
 @app.get("/rag/faq")
 async def responder_faq(pregunta: str = Query(..., description="Pregunta del usuario sobre FAQs")):
@@ -463,3 +761,97 @@ async def info_rag():
             status_code=500,
             detail=f"Error al obtener información RAG: {str(e)}"
         )
+        
+@app.post("/cargar-csv")
+def cargar_csv(db: SessionLocal = Depends(get_db)):
+    try:
+        df = pd.read_csv("model/files/dataset.csv")
+
+        # Si existe la columna id, eliminarla porque es autoincremental
+        if "id" in df.columns:
+            df = df.drop(columns=["id"])
+
+        # Convertir columnas fecha
+        date_cols = [
+            "created_at", "last_order_date", "last_stock_count_date",
+            "last_updated_at", "expiration_date"
+        ]
+
+        for col in date_cols:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+                df[col] = df[col].astype("object").where(df[col].notna(), None)
+                df[col] = df[col].apply(lambda x: x.date() if x is not None else None)
+
+        # Convertir booleanos
+        bool_cols = ["vacaciones_o_no", "es_feriado", "temporada_alta", "is_active"]
+        for col in bool_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.lower().map(
+                    {"true": True, "1": True, "false": False, "0": False}
+                )
+
+        registros = [
+            Registro(**row.dropna().to_dict()) for _, row in df.iterrows()
+        ]
+
+        db.add_all(registros)
+        db.commit()
+
+        return {"message": "CSV cargado con éxito", "total": len(registros)}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Error cargando CSV: {str(e)}")
+
+
+@app.get("/check-db-full")
+def check_db_full():
+    try:
+        db = SessionLocal()
+        result = db.execute(text("SELECT COUNT(*) FROM registros"))
+        total = result.scalar()
+        return {"status": "OK", "tabla": "registros", "total_registros": total}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+    finally:
+        db.close()
+        
+from sqlalchemy import distinct
+
+@app.get("/analisis-stock")
+def analizar_stock_desde_bd(db: SessionLocal = Depends(get_db)):
+    
+    # 1. Obtener solo el registro más reciente por producto
+    registros = (
+        db.query(
+            Registro.product_name,
+            Registro.average_daily_usage,
+            Registro.quantity_on_hand,
+            Registro.created_at
+        )
+        .distinct(Registro.product_name)  # ← evita duplicados
+        .order_by(Registro.product_name, Registro.created_at.desc())  # ← selecciona el más reciente
+        .all()
+    )
+
+    if not registros:
+        return {"mensaje": "No hay datos para analizar."}
+
+    # 2. Construir lote
+    productos_lote = [
+        {
+            "nombre": r.product_name,
+            "stock": r.quantity_on_hand,
+            "ventas_diarias": r.average_daily_usage
+        }
+        for r in registros
+    ]
+
+    # 3. Analizar lote
+    resultado = dias_stock_service.analizar_lote_productos(productos_lote)
+
+    return resultado
+
