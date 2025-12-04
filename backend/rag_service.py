@@ -547,6 +547,7 @@ class UnifiedSemanticRouter:
         if best_func_score < umbral_func and best_faq_score < umbral_faq:
             resultado = {
                 "tipo": "desconocido",
+                "score": max(best_func_score, best_faq_score),  # FIX: Agregar score
                 "score_func": best_func_score,
                 "score_faq": best_faq_score,
                 "mensaje": "No se detectó intención clara"

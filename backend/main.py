@@ -510,6 +510,14 @@ async def chat_endpoint(
             umbral_func=0.60,
             umbral_faq=0.55
         )
+        
+        # Validación defensiva: Asegurar que score siempre exista
+        if 'score' not in intencion:
+            intencion['score'] = max(
+                intencion.get('score_func', 0.0),
+                intencion.get('score_faq', 0.0)
+            )
+        
         print(f"   └─ Tipo: {intencion['tipo']} | Score: {intencion['score']:.3f}")
         
         # CASO 2A: ACCIÓN DETECTADA → Ejecutar función con BD
