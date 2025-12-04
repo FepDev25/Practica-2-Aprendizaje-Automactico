@@ -142,7 +142,13 @@ class ErrorResponse(BaseModel):
     timestamp: str
 
 app = FastAPI()
-dias_stock_service = DiasStockService()
+
+# Variables globales para servicios
+dias_stock_service = None
+router_engine = None
+rag_service = None
+router = None
+llm_service = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -152,38 +158,66 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-mis_funciones = [
-    {"id": "saludo", "docstring": "hola buenos días saludo inicial bienvenida"},
-    {"id": "despedida", "docstring": "adiós hasta luego cerrar chat terminar"},
-    {"id": "enviar_correo", "docstring": "enviar mandar correo email redactar mensaje electronico"},
-    {"id": "calculo_stock", "docstring": "calcular días stock restante inventario cuanto queda mercadería bodega"}
-]
-
-mis_faqs = [
-    {"text": "horario atencion hora abren", "answer": "Atendemos de 9 a 18hs."},
-    {"text": "precio costo valor", "answer": "Los precios dependen del catálogo actual."}
-]
-  
-        
-
-router_engine = SemanticRouter(mis_funciones, mis_faqs)
-# Inicializar servicio LLM
-rag_service = get_rag_service()
-router = crear_router_integrado(rag_service)
-
-try:
-    llm_service = get_llm_service()
-except Exception as e:
-    print(f"Advertencia: No se pudo inicializar el servicio LLM: {e}")
-    llm_service = None
-
-# Inicializar servicio RAG
-try:
-    rag_service = get_rag_service()
-    print("Servicio RAG inicializado correctamente")
-except Exception as e:
-    print(f"Advertencia: No se pudo inicializar el servicio RAG: {e}")
-    rag_service = None
+@app.on_event("startup")
+async def startup_event():
+    """
+    Inicializa todos los servicios pesados durante el startup
+    para evitar segfaults por carga durante requests
+    """
+    global dias_stock_service, router_engine, rag_service, router, llm_service
+    
+    print("🚀 Iniciando carga de servicios...")
+    
+    # 1. Servicio de días de stock (ligero)
+    try:
+        dias_stock_service = DiasStockService()
+        print("DiasStockService cargado")
+    except Exception as e:
+        print(f"Error cargando DiasStockService: {e}")
+    
+    # 2. Semantic Router (ligero)
+    try:
+        mis_funciones = [
+            {"id": "saludo", "docstring": "hola buenos días saludo inicial bienvenida"},
+            {"id": "despedida", "docstring": "adiós hasta luego cerrar chat terminar"},
+            {"id": "enviar_correo", "docstring": "enviar mandar correo email redactar mensaje electronico"},
+            {"id": "calculo_stock", "docstring": "calcular días stock restante inventario cuanto queda mercadería bodega"}
+        ]
+        mis_faqs = [
+            {"text": "horario atencion hora abren", "answer": "Atendemos de 9 a 18hs."},
+            {"text": "precio costo valor", "answer": "Los precios dependen del catálogo actual."}
+        ]
+        router_engine = SemanticRouter(mis_funciones, mis_faqs)
+        print("SemanticRouter cargado")
+    except Exception as e:
+        print(f"Error cargando SemanticRouter: {e}")
+    
+    # 3. Servicio RAG (pesado - FAISS + embeddings)
+    try:
+        rag_service = get_rag_service()
+        print("RAG Service cargado")
+    except Exception as e:
+        print(f"Error cargando RAG Service: {e}")
+        rag_service = None
+    
+    # 4. Router integrado (requiere RAG)
+    try:
+        if rag_service:
+            router = crear_router_integrado(rag_service)
+            print("Router integrado cargado")
+    except Exception as e:
+        print(f"Error cargando Router integrado: {e}")
+        router = None
+    
+    # 5. Servicio LLM (opcional)
+    try:
+        llm_service = get_llm_service()
+        print("LLM Service cargado")
+    except Exception as e:
+        print(f"⚠️  LLM Service no disponible: {e}")
+        llm_service = None
+    
+    print("🎉 Todos los servicios iniciados")
 
 def convertir_numpy_a_python(obj):
     """Convierte tipos numpy a tipos nativos de Python para serialización JSON"""
@@ -197,8 +231,39 @@ def convertir_numpy_a_python(obj):
         return [convertir_numpy_a_python(item) for item in obj]
     return obj
 
-# Cargar modelo
-modelo = ModeloStockKeras()
+# Variable global para el modelo
+modelo = None
+
+@app.on_event("startup")
+async def load_keras_model():
+    """
+    Carga el modelo Keras durante el startup en un hilo separado
+    para evitar bloquear la inicialización
+    """
+    global modelo
+    try:
+        import gc
+        import tensorflow as tf
+        
+        # Configurar TensorFlow para usar menos memoria
+        tf.config.set_soft_device_placement(True)
+        
+        # Limitar memoria GPU si está disponible
+        gpus = tf.config.list_physical_devices('GPU')
+        if gpus:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        
+        print("Cargando modelo Keras...")
+        modelo = ModeloStockKeras()
+        print("Modelo Keras cargado exitosamente")
+        
+        # Forzar garbage collection
+        gc.collect()
+        
+    except Exception as e:
+        print(f"Error cargando modelo Keras: {e}")
+        modelo = None
 def get_db():
     db = SessionLocal()
     try:
@@ -212,11 +277,15 @@ async def home():
 
 @app.get("/modelo/info")
 async def info_modelo():
+    if modelo is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible")
     resumen = modelo.obtener_resumen()
     return {"resumen": resumen}
 
 @app.get("/predictPornombre")
 def predict(fecha: str, nombre: str):
+    if modelo is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible")
 
     try:
         # Obtener SKU desde el CSV
@@ -274,6 +343,8 @@ def predict(fecha: str, nombre: str):
 
 @app.get("/predictPorID")
 def predict(fecha: str, id: int):
+    if modelo is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible")
 
     try:
         sku = buscar_producto_por_id(id)
@@ -326,6 +397,9 @@ def predict(fecha: str, id: int):
 
 @app.get("/predictAll")
 def predict(fecha: str):
+    if modelo is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible")
+    
     productos = all_registers_priductos()
     resultados = []
     
@@ -494,7 +568,7 @@ async def chat_endpoint(
         respuesta_simple = procesar_mensaje_simple(mensaje)
         
         if respuesta_simple:
-            print(f"✅ [NIVEL 1 - REGEX] Respuesta rápida: {respuesta_simple['tipo']}")
+            print(f"[NIVEL 1 - REGEX] Respuesta rápida: {respuesta_simple['tipo']}")
             return ChatResponse(
                 respuesta=respuesta_simple["respuesta"],
                 metodo="regex",
@@ -549,7 +623,7 @@ async def chat_endpoint(
                     params=params_extraidos
                 )
                 
-                print(f"✅ Función ejecutada: {resultado_funcion.get('exito', 'N/A')}")
+                print(f"Función ejecutada: {resultado_funcion.get('exito', 'N/A')}")
                 
                 # Verificar si la función fue exitosa
                 if not resultado_funcion.get('exito', True):
@@ -598,7 +672,7 @@ Responde en español, tono profesional pero amigable.
                 )
             
             except Exception as e:
-                print(f"❌ Error ejecutando {nombre_func}: {e}")
+                print(f"Error ejecutando {nombre_func}: {e}")
                 
                 return ChatResponse(
                     respuesta=f"Ocurrió un error al procesar tu solicitud. " +
@@ -657,7 +731,7 @@ Responde en español, tono profesional pero amigable.
         raise he
     
     except Exception as e:
-        print(f"❌ Error general en chat_endpoint: {e}")
+        print(f"Error general en chat_endpoint: {e}")
         
         raise HTTPException(
             status_code=500,
