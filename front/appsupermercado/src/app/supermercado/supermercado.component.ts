@@ -39,10 +39,10 @@ export class SupermercadoComponent implements OnInit {
     }, 2000);
   }
 
-  
+
   toggleChat(): void {
     this.chatAbierto = !this.chatAbierto;
-    
+
     if (this.chatAbierto) {
       this.mensajesSinLeer = 0;
     }
@@ -55,7 +55,7 @@ export class SupermercadoComponent implements OnInit {
       this.mensajesSinLeer++;
     }
   }
-  
+
   getPedict(fecha: string, nombre: string): void {
     if (!fecha || !nombre) {
       alert('Debe ingresar el producto y la fecha');
@@ -64,7 +64,7 @@ export class SupermercadoComponent implements OnInit {
 
     this.cargandoPrediccion = true;
     this.prediccionResultado = null;
-    
+
     this.service.getPedriccion(fecha, nombre).subscribe({
       next: (data) => {
         console.log(' Predicción recibida:', data);
@@ -87,7 +87,7 @@ export class SupermercadoComponent implements OnInit {
       }
     });
   }
-  
+
   generarReporte(): void {
     if (!this.fechaReporte) {
       alert('Debe seleccionar una fecha para el reporte');
@@ -98,25 +98,25 @@ export class SupermercadoComponent implements OnInit {
     this.mostrarAnalisis = false;
     this.reporte = [];
     this.mensajeResumen = '';
-    
+
     console.log(' Generando reporte para fecha:', this.fechaReporte);
 
     this.service.getReportePorFecha(this.fechaReporte).subscribe({
       next: (data) => {
         console.log(' Reporte recibido:', data);
         const resp: any = data;
-        
+
         this.reporte = resp.predictions ?? [];
         this.mensajeResumen = resp.mensaje_resumen ?? '';
-        
+
         console.log(' Total de productos:', this.reporte.length);
         console.log(' Mensaje resumen (longitud):', this.mensajeResumen.length);
         console.log(' Mensaje resumen (primeros 200 chars):', this.mensajeResumen.slice(0, 200));
         console.log(' Mensaje resumen (últimos 200 chars):', this.mensajeResumen.slice(-200));
-        
+
         if (this.mensajeResumen && this.mensajeResumen.trim().length > 0) {
           this.mostrarAnalisis = true;
-          
+
           setTimeout(() => {
             const analysisElement = document.querySelector('.analysis-section');
             if (analysisElement) {
@@ -126,7 +126,7 @@ export class SupermercadoComponent implements OnInit {
         } else {
           console.warn(' No se recibió mensaje de análisis');
         }
-        
+
         this.cargandoReporte = false;
 
         if (this.reporte.length > 0) {
@@ -151,7 +151,7 @@ export class SupermercadoComponent implements OnInit {
     this.mostrarAnalisis = false;
     console.log('🔒 Panel de análisis cerrado');
   }
-  
+
   subirCsv(): void {
     const input = document.createElement('input');
     input.type = 'file';
@@ -159,10 +159,10 @@ export class SupermercadoComponent implements OnInit {
 
     input.onchange = () => {
       const file = input.files?.[0];
-      
+
       if (file) {
         console.log(' Archivo seleccionado:', file.name, '(', file.size, 'bytes)');
-        
+
         if (!file.name.toLowerCase().endsWith('.csv')) {
           alert('Por favor seleccione un archivo CSV válido');
           return;
@@ -184,13 +184,13 @@ export class SupermercadoComponent implements OnInit {
           next: (resp) => {
             console.log(' CSV subido exitosamente:', resp);
             alert('CSV subido correctamente. Iniciando reentrenamiento del modelo...');
-            
+
             this.reentrenarModelo();
           },
           error: (error) => {
             console.error(' Error al subir CSV:', error);
-            alert('Error al subir el archivo CSV. Por favor intente nuevamente.\n\nDetalle: ' + 
-                  (error.error?.message || error.message || 'Error desconocido'));
+            alert('Error al subir el archivo CSV. Por favor intente nuevamente.\n\nDetalle: ' +
+              (error.error?.message || error.message || 'Error desconocido'));
           }
         });
       }
@@ -209,7 +209,7 @@ export class SupermercadoComponent implements OnInit {
           '¡Modelo reentrenado correctamente! ✓\n\n' +
           'Las nuevas predicciones ya están disponibles con los datos actualizados.'
         );
-        
+
         console.log(' El modelo ha sido actualizado con los nuevos datos');
       },
       error: (error) => {
@@ -221,7 +221,7 @@ export class SupermercadoComponent implements OnInit {
       }
     });
   }
-  
+
   private formatDate(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -248,7 +248,7 @@ export class SupermercadoComponent implements OnInit {
     }
 
     const stockBajo = this.reporte.filter(item => item.prediction < 50);
-    
+
     const stockAlto = this.reporte.filter(item => item.prediction > 500);
 
     if (stockBajo.length > 0 || stockAlto.length > 0) {
@@ -257,5 +257,39 @@ export class SupermercadoComponent implements OnInit {
     }
 
     return false;
+  }
+
+  seccionActiva: string = 'prediccion';
+  busquedaProducto: string = '';
+
+  productosDisponibles = [
+    { sku: 'CRT-103', nombre: 'Barra Cereal Choco', categoria: 'Snacks' },
+    { sku: 'BCA-115', nombre: 'Barra Chocolate Avellana', categoria: 'Snacks' },
+    { sku: 'CPF-107', nombre: 'Barra Proteica Frutos', categoria: 'Snacks' },
+    { sku: 'BGM-111', nombre: 'Barra Granola Miel', categoria: 'Snacks' },
+    { sku: 'CHL-109', nombre: 'Chips Mini Sal y Lima', categoria: 'Snacks' },
+    { sku: 'CHB-105', nombre: 'Chips Sabor Barbacoa', categoria: 'Snacks' },
+    { sku: 'CHV-113', nombre: 'Chips Verde Lima', categoria: 'Snacks' },
+    { sku: 'CHQ-101', nombre: 'Chips Sabor Queso', categoria: 'Snacks' },
+    { sku: 'GLD-102', nombre: 'Galletas Dulces Familia', categoria: 'Snacks' },
+    { sku: 'GIA-114', nombre: 'Galletas Integral Avena', categoria: 'Snacks' },
+    { sku: 'GLS-106', nombre: 'Galletas Saladas Light', categoria: 'Snacks' },
+    { sku: 'PLC-104', nombre: 'Palomitas Caramelo', categoria: 'Snacks' },
+    { sku: 'PLQ-112', nombre: 'Palomitas Queso', categoria: 'Snacks' },
+    { sku: 'PLV-108', nombre: 'Palomitas Sal y Vinagre', categoria: 'Snacks' },
+    { sku: 'GCC-110', nombre: 'Galletas Chocolate Chip', categoria: 'Snacks' }
+  ];
+
+  scrollToSection(seccionId: string) {
+    this.seccionActiva = seccionId;
+
+    if (this.chatAbierto) {
+      this.chatAbierto = false;
+    }
+
+    const elemento = document.getElementById(seccionId);
+    if (elemento) {
+      elemento.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 }
