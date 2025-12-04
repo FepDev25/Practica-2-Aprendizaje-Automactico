@@ -276,7 +276,7 @@ class RAGKnowledgeService:
                 return {
                     "respuesta": "No encontré una FAQ específica para tu consulta. ¿Podrías reformularla? También puedes contactar a nuestro equipo de soporte.",
                     "fuentes": [],
-                    "confianza": "baja",
+                    "confianza": 0.3,
                     "sugerencia": f"Escribe a: {COMPANY_INFO['contacto']['email_soporte']}"
                 }
             
@@ -324,7 +324,7 @@ RESPUESTA:
             return {
                 "respuesta": respuesta.strip(),
                 "fuentes": fuentes,
-                "confianza": "alta" if resultados[0][2] > 0.7 else "media",
+                "confianza": 0.9 if resultados[0][2] > 0.7 else 0.7,
                 "num_fuentes": len(fuentes),
                 "mejor_score": round(resultados[0][2], 2)
             }
@@ -346,7 +346,7 @@ RESPUESTA:
                 return {
                     "respuesta": "No encontré información específica sobre esa consulta en nuestra base de conocimiento. ¿Podrías ser más específico o reformular tu pregunta?",
                     "fuentes": [],
-                    "confianza": "baja"
+                    "confianza": 0.3
                 }
             
             # Construir contexto enriquecido
@@ -397,8 +397,8 @@ RESPUESTA:
             return {
                 "respuesta": respuesta.strip(),
                 "fuentes": fuentes,
-                "confianza": "alta" if resultados[0][2] > 0.7 else "media",
-                "num_documentos": len(fuentes),
+                "confianza": 0.9 if resultados[0][2] > 0.7 else 0.7,
+                "num_fuentes": len(fuentes),
                 "mejor_score": round(resultados[0][2], 2)
             }
             
