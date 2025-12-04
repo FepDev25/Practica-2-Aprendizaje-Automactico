@@ -521,8 +521,9 @@ async def chat_endpoint(
         print(f"   └─ Tipo: {intencion['tipo']} | Score: {intencion['score']:.3f}")
         
         # CASO 2A: ACCIÓN DETECTADA → Ejecutar función con BD
-        if intencion["tipo"] == "accion" and intencion["score"] > 0.65:
+        if intencion["tipo"] == "accion" and intencion["score"] > 0.58:
             nombre_func = intencion["funcion"]
+            print(f"   └─ 🎯 Función detectada: {nombre_func}")
             
             if nombre_func not in FUNCIONES_DISPONIBLES:
                 raise HTTPException(

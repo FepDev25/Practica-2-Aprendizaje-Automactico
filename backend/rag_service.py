@@ -599,8 +599,8 @@ def crear_router_integrado(rag_service: RAGKnowledgeService) -> UnifiedSemanticR
         },
         {
             "id": "enviar_correo",
-            "docstring": "enviar mandar correo email redactar mensaje electrónico notificar",
-            "keywords": ["correo", "email", "enviar", "mensaje", "notificar"]
+            "docstring": "enviar mandar correo email reporte predicciones mensaje electrónico notificar envía",
+            "keywords": ["correo", "email", "enviar", "envía", "mandar", "manda", "mensaje", "notificar", "reporte", "predicciones"]
         }
     ]
     
