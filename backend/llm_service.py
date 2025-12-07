@@ -363,8 +363,246 @@ Genera SOLO la lista de recomendaciones (sin títulos adicionales):
             f"Se completó el análisis de {total} productos para la fecha {fecha}. "
             f"Revise los resultados detallados para más información."
         )
+    def generar_mensaje_productos_criticos(
+        self,
+        total_productos: int,
+        productos_criticos: list,
+        productos_alerta: list,
+        productos_ok: int
+    ) -> str:
+        """
+        Genera mensaje para análisis de productos críticos desde base de datos
+        
+        Args:
+            total_productos: Total de productos analizados
+            productos_criticos: Lista de productos en estado CRÍTICO
+            productos_alerta: Lista de productos en estado ALERTA
+            productos_ok: Cantidad de productos con stock OK
+        
+        Returns:
+            str: Mensaje resumen generado
+        """
+        try:
+            # Construir lista de nombres de productos críticos
+            nombres_criticos = []
+            if productos_criticos:
+                for prod in productos_criticos[:5]:  # Top 5 más críticos
+                    nombre = prod.get('nombre', prod.get('producto', 'Desconocido'))
+                    dias = prod.get('dias_restantes', 'N/A')
+                    nombres_criticos.append(f"{nombre} ({dias} días)")
+            
+            # Construir lista de productos en alerta
+            nombres_alerta = []
+            if productos_alerta:
+                for prod in productos_alerta[:3]:  # Top 3 en alerta
+                    nombre = prod.get('nombre', prod.get('producto', 'Desconocido'))
+                    dias = prod.get('dias_restantes', 'N/A')
+                    nombres_alerta.append(f"{nombre} ({dias} días)")
+            
+            # Construir contexto más limpio y directo
+            contexto = f"""
+RESUMEN DEL INVENTARIO:
+- Total de productos: {total_productos}
+- Críticos (requieren reabastecimiento HOY): {len(productos_criticos)}
+- En alerta (planificar pedido esta semana): {len(productos_alerta)}
+- Stock adecuado: {productos_ok}
 
+PRODUCTOS MÁS URGENTES:
+"""
+            
+            if nombres_criticos:
+                contexto += "🚨 CRÍTICOS:\n"
+                for i, prod in enumerate(nombres_criticos, 1):
+                    contexto += f"  {i}. {prod}\n"
+            
+            if nombres_alerta:
+                contexto += "\n⚠️ EN ALERTA:\n"
+                for i, prod in enumerate(nombres_alerta, 1):
+                    contexto += f"  {i}. {prod}\n"
+            
+            # Template del prompt MÁS ESPECÍFICO
+            template = """
+Eres un analista de inventario de UPS Tuti que genera reportes concisos.
 
+Analiza este resumen de inventario:
+
+{contexto}
+
+INSTRUCCIONES ESPECÍFICAS:
+1. Primera oración: Estado general (crítico/alerta/ok)
+2. Segunda parte: Si hay productos CRÍTICOS, menciona EXPLÍCITAMENTE los nombres de los 2-3 productos más urgentes
+3. Tercera parte: Si hay productos en ALERTA, menciónalos brevemente
+4. Última oración: Recomendación de acción clara y directa
+5. IMPORTANTE: Debes mencionar los NOMBRES ESPECÍFICOS de los productos, no solo decir "hay X productos"
+6. Máximo 5-6 oraciones
+7. Usa 1-2 emojis solo al inicio
+
+EJEMPLO DE RESPUESTA:
+"🚨 Situación crítica: 8 productos requieren reabastecimiento urgente. Los más críticos son Barra Protein Plus (1.2 días), Mix Frutos Secos (0.8 días) y Chips Quinoa (2.1 días). Adicionalmente, 5 productos están en alerta y deben pedirse esta semana. Se recomienda contactar a proveedores HOY para los productos críticos."
+
+GENERA TU REPORTE:
+            """
+            
+            prompt = ChatPromptTemplate.from_template(template)
+            chain = prompt | self.llm | StrOutputParser()
+            
+            mensaje = chain.invoke({"contexto": contexto})
+            return mensaje.strip()
+            
+        except Exception as e:
+            print(f"Error generando mensaje de productos críticos: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Fallback con nombres específicos
+            num_criticos = len(productos_criticos) if productos_criticos else 0
+            num_alertas = len(productos_alerta) if productos_alerta else 0
+            
+            if num_criticos > 0:
+                # Construir mensaje con nombres
+                nombres = []
+                for prod in productos_criticos[:3]:
+                    nombre = prod.get('nombre', prod.get('producto', 'Desconocido'))
+                    dias = prod.get('dias_restantes', 'N/A')
+                    nombres.append(f"{nombre} ({dias} días)")
+                
+                lista_nombres = ", ".join(nombres)
+                return (
+                    f"🚨 Atención urgente: {num_criticos} productos en estado crítico. "
+                    f"Los más urgentes son: {lista_nombres}. "
+                    f"Se recomienda reabastecer HOY."
+                )
+            elif num_alertas > 0:
+                return (
+                    f"⚠️ {num_alertas} productos requieren planificación de pedido esta semana "
+                    f"para evitar desabastecimiento."
+                )
+            else:
+                return f"✅ Excelente: Los {total_productos} productos tienen stock adecuado."
+
+    def generar_mensaje_producto_critico(self, productos_criticos: list) -> str:
+        """
+        Genera mensaje específico para alertas de productos críticos
+        
+        Args:
+            productos_criticos: Lista de productos en estado crítico
+        
+        Returns:
+            str: Mensaje de alerta generado
+        """
+        try:
+            if not productos_criticos:
+                return "✅ No hay productos en estado crítico. Todos los niveles de inventario son adecuados."
+            
+            # Construir contexto
+            contexto = f"⚠️ ALERTA: {len(productos_criticos)} PRODUCTOS EN ESTADO CRÍTICO\n\n"
+            
+            for i, prod in enumerate(productos_criticos[:10], 1):
+                dias = prod.get('dias_restantes_estimados', 'N/A')
+                urgencia = prod.get('urgencia', 'MEDIA')
+                contexto += (
+                    f"{i}. {prod['nombre']} (SKU: {prod['sku']})\n"
+                    f"   Stock predicho: {prod['prediccion']:.1f} | Mínimo: {prod['minimum_stock']:.1f}\n"
+                    f"   Días restantes aprox: {dias} | Urgencia: {urgencia}\n\n"
+                )
+            
+            template = """
+Eres un asistente de gestión de inventario de UPS Tuti.
+
+Genera un mensaje de alerta profesional y urgente basado en estos productos críticos:
+
+{contexto}
+
+INSTRUCCIONES:
+1. Comienza con una alerta clara del problema
+2. Lista brevemente los 3 productos más urgentes
+3. Da una recomendación de acción inmediata
+4. Mantén el mensaje conciso (máximo 5 oraciones)
+5. Usa un tono urgente pero profesional
+
+MENSAJE DE ALERTA:
+            """
+            
+            prompt = ChatPromptTemplate.from_template(template)
+            chain = prompt | self.llm | StrOutputParser()
+            
+            mensaje = chain.invoke({"contexto": contexto})
+            return mensaje.strip()
+            
+        except Exception as e:
+            print(f"Error generando mensaje de alerta: {e}")
+            return (
+                f"⚠️ ALERTA: {len(productos_criticos)} productos requieren reabastecimiento urgente. "
+                f"Revisa el detalle de productos críticos para tomar acción inmediata."
+            )
+    def generar_mensaje_envio_email(
+        self,
+        destinatario: str,
+        tipo_reporte: str,
+        num_productos: int,
+        fecha: str,
+        resumen_contenido: str = ""
+    ) -> str:
+        """
+        Genera un mensaje de confirmación personalizado para el envío de correo
+        
+        Args:
+            destinatario: Email del destinatario
+            tipo_reporte: Tipo de reporte enviado ('Predicción de Stock' o 'Alerta de Stock Crítico')
+            num_productos: Cantidad de productos incluidos en el reporte
+            fecha: Fecha del análisis
+            resumen_contenido: Resumen breve del contenido del email (opcional)
+        
+        Returns:
+            str: Mensaje de confirmación generado
+        """
+        try:
+            template = """
+    Eres un asistente de gestión de inventarios de UPS Tuti.
+    
+    Se acaba de enviar un reporte por correo electrónico con los siguientes detalles:
+    
+    DETALLES DEL ENVÍO:
+    - Destinatario: {destinatario}
+    - Tipo de reporte: {tipo_reporte}
+    - Productos incluidos: {num_productos}
+    - Fecha del análisis: {fecha}
+    - Contenido: {resumen_contenido}
+    
+    INSTRUCCIONES:
+    1. Genera un mensaje de confirmación profesional y amigable (máximo 3-4 oraciones)
+    2. Confirma que el correo fue enviado exitosamente
+    3. Menciona brevemente el contenido del reporte enviado
+    4. Si el tipo de reporte es "Alerta de Stock Crítico", resalta la importancia de revisar el correo pronto
+    5. Si es "Predicción de Stock", menciona que es información útil para planificación
+    6. Usa un tono profesional pero cercano
+    7. Incluye un emoji apropiado al inicio (📧 para confirmación general, 🚨 para alertas críticas)
+    
+    Respuesta:
+            """
+            
+            prompt = ChatPromptTemplate.from_template(template)
+            chain = prompt | self.llm | StrOutputParser()
+            
+            mensaje = chain.invoke({
+                "destinatario": destinatario,
+                "tipo_reporte": tipo_reporte,
+                "num_productos": num_productos,
+                "fecha": fecha,
+                "resumen_contenido": resumen_contenido or "Análisis de inventario detallado"
+            })
+            
+            return mensaje.strip()
+            
+        except Exception as e:
+            print(f"Error generando mensaje de envío de email: {e}")
+            # Fallback
+            emoji = "🚨" if "Crítico" in tipo_reporte else "📧"
+            return (
+                f"{emoji} Reporte '{tipo_reporte}' enviado exitosamente a {destinatario}. "
+                f"Se incluyó el análisis de {num_productos} productos con fecha {fecha}. "
+                f"Por favor, revise su correo para ver los detalles completos."
+            )  
 _llm_service = None
 
 

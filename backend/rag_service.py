@@ -1,27 +1,21 @@
 import os
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
 from dotenv import load_dotenv
-import numpy as np
-from functools import lru_cache
-
 from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from company_info import COMPANY_INFO, FAQS
-
-# Configuración
-env_path = Path(__file__).parent / '.env'
+import datetime
+env_path = Path(__file__).parent / 'env/.env'
 load_dotenv(dotenv_path=env_path)
 PROJECT_ID = os.getenv("PROJECT_ID")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 LLM_MODEL = "gemini-2.0-flash-exp"
 
-
 class RAGKnowledgeService:
-    """Servicio RAG para responder preguntas usando knowledge base optimizada"""
+    # servicio RAG para responder preguntas usando knowledge base
     
     def __init__(self):
         self._validar_configuracion()
@@ -30,12 +24,9 @@ class RAGKnowledgeService:
         self.llm = self._crear_llm()
         self.embeddings = self._crear_embeddings()
         
-        # Vector stores
+        # Crear vector stores
         self.vectorstore_company = None
         self.vectorstore_faqs = None
-        
-        # Cache para consultas repetidas
-        self._cache_consultas = {}
         
         # Inicializar knowledge base
         self._inicializar_knowledge_base()
@@ -45,6 +36,7 @@ class RAGKnowledgeService:
     def _validar_configuracion(self):
         if not PROJECT_ID:
             raise ValueError("Error: PROJECT_ID no configurado")
+        
         if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
             raise FileNotFoundError("Error: Credenciales de Google Cloud no encontradas")
     
@@ -52,264 +44,211 @@ class RAGKnowledgeService:
         return ChatVertexAI(
             model=LLM_MODEL,
             project=PROJECT_ID,
-            temperature=0.3,
-            max_tokens=500,  # Aumentado para respuestas más completas
+            temperature=0.3, 
+            max_tokens=400,
         )
     
     def _crear_embeddings(self):
         return VertexAIEmbeddings(
-            model_name="text-embedding-005",
+            model_name="text-embedding-005",  
             project=PROJECT_ID
         )
     
-    def _crear_documentos_empresa(self) -> List[Document]:
-        """Crea documentos optimizados con mejor estructura"""
+    def _crear_documentos_empresa(self) -> list[Document]:
+        # convierte la información de la empresa en documentos para el vector store
         documentos = []
         
-        # 1. Info General Estructurada
+        # Información general
         info_general = f"""
-        INFORMACIÓN CORPORATIVA - UPS TUTI
+        Empresa: {COMPANY_INFO['nombre']}
+        Nicho: {COMPANY_INFO['nicho']}
+        Slogan: {COMPANY_INFO['slogan']}
         
-        Nombre: {COMPANY_INFO['nombre']}
-        Nicho de Mercado: {COMPANY_INFO['nicho']}
-        Lema Corporativo: {COMPANY_INFO['slogan']}
-        
-        Fundación: {COMPANY_INFO['fundacion']}
-        Ubicación: {COMPANY_INFO['sede']}
+        Fundada en: {COMPANY_INFO['fundacion']}
+        Sede: {COMPANY_INFO['sede']}
         
         Misión: {COMPANY_INFO['mision']}
         Visión: {COMPANY_INFO['vision']}
-        
-        Valores: Calidad, Innovación, Sostenibilidad, Servicio al Cliente
         """
         documentos.append(Document(
             page_content=info_general,
-            metadata={"tipo": "info_general", "categoria": "empresa", "prioridad": "alta"}
+            metadata={"tipo": "info_general", "categoria": "empresa"}
         ))
         
-        # 2. Catálogo de Productos (mejorado)
+        # Productos por categoría
         for categoria, productos in COMPANY_INFO['productos'].items():
-            categoria_limpia = categoria.replace('_', ' ').title()
-            
-            # Documento resumen de categoría
-            resumen = f"CATEGORÍA: {categoria_limpia}\n\n"
-            resumen += f"Total de productos: {len(productos)}\n\n"
-            
-            # Documentos individuales por producto (mejor para búsquedas específicas)
+            productos_texto = f"Categoría: {categoria.replace('_', ' ').title()}\n\n"
             for prod in productos:
-                prod_detalle = f"""
-                PRODUCTO: {prod['nombre']}
-                SKU: {prod['sku']}
-                Categoría: {prod['categoria']}
-                Línea: {categoria_limpia}
-                
-                Descripción: Producto premium de UPS Tuti disponible para distribución mayorista.
-                """
-                
-                documentos.append(Document(
-                    page_content=prod_detalle,
-                    metadata={
-                        "tipo": "producto",
-                        "categoria": categoria,
-                        "sku": prod['sku'],
-                        "nombre": prod['nombre'],
-                        "prioridad": "alta"
-                    }
-                ))
+                productos_texto += f"- {prod['nombre']} (SKU: {prod['sku']}, Categoría: {prod['categoria']})\n"
+            
+            documentos.append(Document(
+                page_content=productos_texto,
+                metadata={"tipo": "productos", "categoria": categoria}
+            ))
         
-        # 3. Servicios
-        servicios_texto = "SERVICIOS DISPONIBLES - UPS TUTI\n\n"
+        # Servicios
+        servicios_texto = "Servicios que ofrece UPS Tuti:\n\n"
         for i, servicio in enumerate(COMPANY_INFO['servicios'], 1):
             servicios_texto += f"{i}. {servicio}\n"
-        servicios_texto += "\n\nTodos nuestros servicios están diseñados para mayoristas y distribuidores."
         
         documentos.append(Document(
             page_content=servicios_texto,
-            metadata={"tipo": "servicios", "categoria": "empresa", "prioridad": "media"}
+            metadata={"tipo": "servicios", "categoria": "empresa"}
         ))
         
-        # 4. Horarios (estructurado)
+        # Horarios
         horarios_texto = f"""
-        HORARIOS DE OPERACIÓN - UPS TUTI
+        Horarios de atención:
         
-        Atención al Cliente: {COMPANY_INFO['horario']['atencion_cliente']}
-        Operaciones de Almacén: {COMPANY_INFO['horario']['operaciones_almacen']}
-        Soporte Técnico: {COMPANY_INFO['horario']['soporte_tecnico']}
-        
-        Nota: Para urgencias fuera de horario, contactar vía WhatsApp.
+        Atención al cliente: {COMPANY_INFO['horario']['atencion_cliente']}
+        Operaciones de almacén: {COMPANY_INFO['horario']['operaciones_almacen']}
+        Soporte técnico: {COMPANY_INFO['horario']['soporte_tecnico']}
         """
         documentos.append(Document(
             page_content=horarios_texto,
-            metadata={"tipo": "horarios", "categoria": "operacion", "prioridad": "alta"}
+            metadata={"tipo": "horarios", "categoria": "operacion"}
         ))
         
-        # 5. Contacto (expandido)
+        # Contacto
         contacto_texto = f"""
-        INFORMACIÓN DE CONTACTO - UPS TUTI
+        Información de contacto de UPS Tuti:
         
-        Ventas: {COMPANY_INFO['contacto']['email_ventas']}
-        Soporte: {COMPANY_INFO['contacto']['email_soporte']}
+        Email de ventas: {COMPANY_INFO['contacto']['email_ventas']}
+        Email de soporte: {COMPANY_INFO['contacto']['email_soporte']}
         Teléfono: {COMPANY_INFO['contacto']['telefono']}
         WhatsApp: {COMPANY_INFO['contacto']['whatsapp']}
-        Dirección Física: {COMPANY_INFO['contacto']['direccion']}
-        
-        Preferencia de contacto: WhatsApp para consultas rápidas, Email para pedidos formales.
+        Dirección: {COMPANY_INFO['contacto']['direccion']}
         """
         documentos.append(Document(
             page_content=contacto_texto,
-            metadata={"tipo": "contacto", "categoria": "empresa", "prioridad": "alta"}
+            metadata={"tipo": "contacto", "categoria": "empresa"}
         ))
         
-        # 6. Historia
-        hitos_texto = "HISTORIA Y LOGROS - UPS TUTI\n\n"
+        # Hitos históricos
+        hitos_texto = "Historia y logros de UPS Tuti:\n\n"
         for hito in COMPANY_INFO['hitos']:
-            hitos_texto += f"✓ {hito}\n"
+            hitos_texto += f"• {hito}\n"
         
         documentos.append(Document(
             page_content=hitos_texto,
-            metadata={"tipo": "historia", "categoria": "empresa", "prioridad": "baja"}
+            metadata={"tipo": "historia", "categoria": "empresa"}
         ))
         
-        # 7. Políticas
-        politicas_texto = "POLÍTICAS EMPRESARIALES - UPS TUTI\n\n"
+        # Políticas
+        politicas_texto = "Políticas de UPS Tuti:\n\n"
         for nombre_politica, descripcion in COMPANY_INFO['politicas'].items():
-            politicas_texto += f"• {nombre_politica.replace('_', ' ').title()}:\n  {descripcion}\n\n"
+            politicas_texto += f"{nombre_politica.replace('_', ' ').title()}: {descripcion}\n\n"
         
         documentos.append(Document(
             page_content=politicas_texto,
-            metadata={"tipo": "politicas", "categoria": "empresa", "prioridad": "media"}
+            metadata={"tipo": "politicas", "categoria": "empresa"}
         ))
         
-        # 8. Ventajas Competitivas
-        diferenciadores_texto = "VENTAJAS COMPETITIVAS - UPS TUTI\n\n"
+        # Diferenciadores
+        diferenciadores_texto = "Ventajas competitivas de UPS Tuti:\n\n"
         for i, dif in enumerate(COMPANY_INFO['diferenciadores'], 1):
             diferenciadores_texto += f"{i}. {dif}\n"
         
         documentos.append(Document(
             page_content=diferenciadores_texto,
-            metadata={"tipo": "diferenciadores", "categoria": "empresa", "prioridad": "media"}
+            metadata={"tipo": "diferenciadores", "categoria": "empresa"}
         ))
         
-        # 9. Red de Proveedores
-        proveedores_texto = "RED DE PROVEEDORES - UPS TUTI\n\n"
+        # Proveedores
+        proveedores_texto = "Proveedores de UPS Tuti:\n\n"
         for nombre_prov, info in COMPANY_INFO['proveedores'].items():
-            proveedores_texto += f"• {nombre_prov} (Prioridad: {info['prioridad']})\n"
-            proveedores_texto += f"  Productos: {', '.join(info['productos'])}\n\n"
+            proveedores_texto += f"{nombre_prov} (Prioridad {info['prioridad']}): {', '.join(info['productos'])}\n"
         
         documentos.append(Document(
             page_content=proveedores_texto,
-            metadata={"tipo": "proveedores", "categoria": "operacion", "prioridad": "baja"}
+            metadata={"tipo": "proveedores", "categoria": "operacion"}
         ))
         
         return documentos
     
-    def _crear_documentos_faqs(self) -> List[Document]:
-        """Crea documentos de FAQs con mejor contexto"""
+    def _crear_documentos_faqs(self) -> list[Document]:
+        # convierte las FAQs en documentos para el vector store
         documentos = []
         
         for i, faq in enumerate(FAQS):
-            # Contexto enriquecido
-            contenido = f"""
-            PREGUNTA FRECUENTE #{i+1}
-            
-            Pregunta: {faq['pregunta']}
-            
-            Respuesta: {faq['respuesta']}
-            
-            Categoría: FAQ | Atención al Cliente
-            """
+            # Combinar pregunta y respuesta para mejor contexto
+            contenido = f"Pregunta: {faq['pregunta']}\n\nRespuesta: {faq['respuesta']}"
             
             documentos.append(Document(
                 page_content=contenido,
                 metadata={
                     "tipo": "faq",
                     "pregunta": faq['pregunta'],
-                    "id": i,
-                    "prioridad": "alta"
+                    "id": i
                 }
             ))
         
         return documentos
     
     def _inicializar_knowledge_base(self):
-        """Inicializa vectorstores con manejo de errores"""
+        # inicializa los vector stores con los documentos de la empresa y FAQs
         try:
+            # Crear documentos
             docs_empresa = self._crear_documentos_empresa()
             docs_faqs = self._crear_documentos_faqs()
             
-            print(f"📄 Creando {len(docs_empresa)} documentos de empresa...")
+            # Crear vector stores con FAISS
+            print("Creando vector store de información de empresa...")
             self.vectorstore_company = FAISS.from_documents(
                 docs_empresa,
                 self.embeddings
             )
             
-            print(f"❓ Creando {len(docs_faqs)} documentos de FAQs...")
+            print("Creando vector store de FAQs...")
             self.vectorstore_faqs = FAISS.from_documents(
                 docs_faqs,
                 self.embeddings
             )
             
-            print(f"Knowledge base lista: {len(docs_empresa)} docs empresa, {len(docs_faqs)} FAQs")
+            print(f"Knowledge base inicializada: {len(docs_empresa)} docs de empresa, {len(docs_faqs)} FAQs")
             
         except Exception as e:
             print(f"Error al inicializar knowledge base: {e}")
             raise
     
-    @lru_cache(maxsize=100)
-    def _busqueda_con_cache(self, consulta: str, tipo: str, k: int) -> Tuple:
-        """Búsqueda con cache para consultas repetidas"""
-        vectorstore = self.vectorstore_faqs if tipo == "faq" else self.vectorstore_company
-        docs = vectorstore.similarity_search_with_score(consulta, k=k)
-        # Convertir a tupla para hacer hashable
-        return tuple((doc.page_content, doc.metadata, score) for doc, score in docs)
-    
-    def responder_faq(self, pregunta_usuario: str, k: int = 3) -> dict:
-        """Responde FAQs con búsqueda mejorada"""
+    def responder_faq(self, pregunta_usuario: str, k: int = 2) -> dict:
+        # responde a una pregunta buscando en las FAQs usando RAG
+      
         try:
-            # Búsqueda con scores
-            resultados = self._busqueda_con_cache(pregunta_usuario, "faq", k)
+            # Buscar FAQs similares
+            docs_relevantes = self.vectorstore_faqs.similarity_search(
+                pregunta_usuario,
+                k=k
+            )
             
-            if not resultados or resultados[0][2] < 0.5:  # Score mínimo
+            if not docs_relevantes:
                 return {
-                    "respuesta": "No encontré una FAQ específica para tu consulta. ¿Podrías reformularla? También puedes contactar a nuestro equipo de soporte.",
+                    "message": "Lo siento, no encontré información específica sobre esa pregunta. ¿Podrías reformularla o contactar a nuestro soporte?",
                     "fuentes": [],
-                    "confianza": 0.3,
-                    "sugerencia": f"Escribe a: {COMPANY_INFO['contacto']['email_soporte']}"
+                    "confianza": "baja"
                 }
             
-            # Construir contexto con scores
-            contexto_items = []
-            fuentes = []
-            for content, metadata, score in resultados[:k]:
-                if score > 0.5:  # Filtrar por relevancia
-                    contexto_items.append(f"[Relevancia: {score:.2f}]\n{content}")
-                    fuentes.append({
-                        "pregunta": metadata.get('pregunta', 'N/A'),
-                        "relevancia": round(score, 2)
-                    })
+            # Construir contexto con las FAQs encontradas
+            contexto = "\n\n".join([doc.page_content for doc in docs_relevantes])
             
-            contexto = "\n\n---\n\n".join(contexto_items)
-            
-            # Prompt mejorado para FAQs más útiles
+            # Crear prompt para el LLM
             template = """
-Eres un asistente experto de UPS Tuti, distribuidor mayorista de snacks saludables en Ecuador.
+Eres un asistente de atención al cliente de UPS Tuti, un distribuidor mayorista de snacks saludables.
 
-PREGUNTAS FRECUENTES RELACIONADAS:
+Responde la pregunta del usuario usando ÚNICAMENTE la información de las siguientes FAQs:
+
 {contexto}
 
-PREGUNTA DEL USUARIO: {pregunta}
+Pregunta del usuario: {pregunta}
 
-INSTRUCCIONES IMPORTANTES:
-1. Proporciona una respuesta COMPLETA Y ÚTIL basada en las FAQs
-2. Incluye TODOS los datos relevantes: horarios exactos, montos, procesos paso a paso
-3. Si hay varios puntos importantes, enuméralos claramente
-4. Si la pregunta tiene múltiples aspectos, abordalos todos
-5. Sé específico con nombres, números, contactos y URLs cuando aplique
-6. Tono cercano y servicial, como un asesor comercial experto
-7. Entre 3-6 oraciones dependiendo de la complejidad
-8. Si mencionas contacto, incluye email y teléfono
+INSTRUCCIONES:
+1. Si la información está en las FAQs, responde de manera clara y amigable
+2. Cita la información relevante de las FAQs
+3. Si la pregunta NO está relacionada con las FAQs proporcionadas, di que no tienes esa información específica y sugiere contactar al equipo
+4. Mantén un tono profesional pero cercano
+5. Sé conciso (máximo 4-5 oraciones)
 
-RESPUESTA:
+Respuesta:
             """
             
             prompt = ChatPromptTemplate.from_template(template)
@@ -320,72 +259,63 @@ RESPUESTA:
                 "pregunta": pregunta_usuario
             })
             
+            # Extraer preguntas de las FAQs relevantes
+            fuentes = [doc.metadata.get('pregunta', 'N/A') for doc in docs_relevantes]
+            
             return {
-                "respuesta": respuesta.strip(),
+                "message": respuesta.strip(),
                 "fuentes": fuentes,
-                "confianza": 0.9 if resultados[0][2] > 0.7 else 0.7,
-                "num_fuentes": len(fuentes),
-                "mejor_score": round(resultados[0][2], 2)
+                "confianza": "alta",
+                "num_fuentes": len(docs_relevantes)
             }
             
         except Exception as e:
             print(f"Error en responder_faq: {e}")
             return {
-                "respuesta": f"Disculpa, ocurrió un error técnico. Contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}",
+                "message": f"Disculpa, ocurrió un error al procesar tu pregunta. Por favor contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}",
                 "fuentes": [],
                 "confianza": "error"
             }
     
-    def responder_sobre_empresa(self, consulta_usuario: str, k: int = 4) -> dict:
-        """Responde sobre la empresa con búsqueda optimizada"""
+    def responder_sobre_empresa(self, consulta_usuario: str, k: int = 3) -> dict:
+        #
+        # responde preguntas generales sobre la empresa usando RAG
+        
         try:
-            resultados = self._busqueda_con_cache(consulta_usuario, "empresa", k)
+            # Buscar documentos relevantes
+            docs_relevantes = self.vectorstore_company.similarity_search(
+                consulta_usuario,
+                k=k
+            )
             
-            if not resultados or resultados[0][2] < 0.4:
+            if not docs_relevantes:
                 return {
-                    "respuesta": "No encontré información específica sobre esa consulta en nuestra base de conocimiento. ¿Podrías ser más específico o reformular tu pregunta?",
+                    "message": "No encontré información específica sobre eso. ¿Podrías ser más específico?",
                     "fuentes": [],
-                    "confianza": 0.3
+                    "confianza": "baja"
                 }
             
-            # Construir contexto enriquecido
-            contexto_items = []
-            fuentes = []
+            # Construir contexto
+            contexto = "\n\n---\n\n".join([doc.page_content for doc in docs_relevantes])
             
-            for content, metadata, score in resultados:
-                if score > 0.4:
-                    tipo_doc = metadata.get('tipo', 'general')
-                    contexto_items.append(f"[Tipo: {tipo_doc} | Relevancia: {score:.2f}]\n{content}")
-                    fuentes.append({
-                        "tipo": tipo_doc,
-                        "categoria": metadata.get('categoria', 'N/A'),
-                        "relevancia": round(score, 2)
-                    })
-            
-            contexto = "\n\n---\n\n".join(contexto_items)
-            
-            # Prompt mejorado para respuestas más completas
+            # Crear prompt
             template = """
-Eres un asistente experto de UPS Tuti, distribuidor mayorista de snacks saludables en Cuenca, Ecuador.
+Eres un asistente experto de UPS Tuti, un distribuidor mayorista de snacks saludables en Ecuador.
 
-INFORMACIÓN CORPORATIVA DISPONIBLE:
+Usa la siguiente información de la empresa para responder la consulta del usuario:
+
 {contexto}
 
-PREGUNTA DEL USUARIO: {consulta}
+Consulta del usuario: {consulta}
 
-INSTRUCCIONES IMPORTANTES:
-1. Proporciona una respuesta COMPLETA y DETALLADA usando toda la información relevante del contexto
-2. Si preguntan "qué hacemos" o "a qué nos dedicamos", explica:
-   - Nuestra actividad principal (distribución mayorista de snacks saludables)
-   - Nuestros productos destacados
-   - Nuestra propuesta de valor (tecnología IA para inventario)
-3. Si mencionas productos, incluye ejemplos específicos con SKUs
-4. Estructura la respuesta de forma clara con bullet points si hay múltiples elementos
-5. Incluye datos concretos (fechas, ubicación, números) cuando estén disponibles
-6. Tono profesional pero cálido y acogedor
-7. Respuesta entre 4-8 oraciones según la complejidad de la pregunta
+INSTRUCCIONES:
+1. Responde usando ÚNICAMENTE la información proporcionada
+2. Sé preciso y específico
+3. Si la información no está en el contexto, dilo claramente
+4. Mantén un tono profesional y amigable
+5. Incluye detalles relevantes (fechas, números, nombres) cuando estén disponibles
 
-RESPUESTA:
+Respuesta:
             """
             
             prompt = ChatPromptTemplate.from_template(template)
@@ -396,236 +326,354 @@ RESPUESTA:
                 "consulta": consulta_usuario
             })
             
+            # Extraer tipos de documentos usados
+            tipos_docs = [doc.metadata.get('tipo', 'desconocido') for doc in docs_relevantes]
+            
             return {
-                "respuesta": respuesta.strip(),
-                "fuentes": fuentes,
-                "confianza": 0.9 if resultados[0][2] > 0.7 else 0.7,
-                "num_fuentes": len(fuentes),
-                "mejor_score": round(resultados[0][2], 2)
+                "message": respuesta.strip(),
+                "fuentes": tipos_docs,
+                "confianza": "alta",
+                "num_documentos": len(docs_relevantes)
             }
             
         except Exception as e:
             print(f"Error en responder_sobre_empresa: {e}")
             return {
-                "respuesta": f"Error al procesar tu consulta. Contacta: {COMPANY_INFO['contacto']['email_soporte']}",
+                "message": f"Ocurrió un error al procesar tu consulta. Contacta a nuestro equipo: {COMPANY_INFO['contacto']['email_soporte']}",
                 "fuentes": [],
                 "confianza": "error"
             }
     
     def responder_pregunta_general(self, pregunta: str) -> dict:
-        """Router inteligente que decide dónde buscar"""
-        
-        # Análisis de keywords mejorado
-        keywords_faq = {
-            'preguntas': ['cómo', 'cuándo', 'dónde', 'por qué', 'quién', 'cuál'],
-            'operaciones': ['horario', 'contacto', 'teléfono', 'email', 'dirección'],
-            'comercial': ['precio', 'costo', 'pagar', 'comprar', 'pedido'],
-            'logística': ['envío', 'entrega', 'devolución', 'garantía'],
-            'soporte': ['problema', 'ayuda', 'soporte', 'reclamo']
-        }
-        
-        keywords_empresa = {
-            'corporativo': ['misión', 'visión', 'historia', 'fundación', 'dedica', 'hace', 'empresa', 'ups tuti', 'nosotros'],
-            'productos': ['producto', 'sku', 'catálogo', 'snack', 'vende', 'venden', 'tienen', 'galleta', 'chip', 'barra'],
-            'servicios': ['servicio', 'ofrece', 'provee', 'facilita', 'brinda'],
-            'partners': ['proveedor', 'socio', 'alianza'],
-            'ubicacion': ['dónde', 'donde', 'ubicación', 'dirección', 'ciudad', 'sede']
-        }
+        #
+        # Método principal que decide si buscar en FAQs o información general de empresa
+        #
+        # Args:
+        #     pregunta: Pregunta del usuario
+        #     
+        # Returns:
+        #     dict con respuesta y metadata
+        #
+        # Palabras clave que sugieren búsqueda en FAQs
+        keywords_faq = ['cómo', 'cuándo', 'dónde', 'horario', 'contacto', 'precio', 
+                        'envío', 'devolución', 'pago', 'cliente']
         
         pregunta_lower = pregunta.lower()
+        es_faq = any(keyword in pregunta_lower for keyword in keywords_faq)
         
-        # Contar matches
-        score_faq = sum(
-            1 for categoria in keywords_faq.values()
-            for keyword in categoria
-            if keyword in pregunta_lower
-        )
-        
-        score_empresa = sum(
-            1 for categoria in keywords_empresa.values()
-            for keyword in categoria
-            if keyword in pregunta_lower
-        )
-        
-        # Decisión inteligente
-        if score_faq > score_empresa:
-            resultado = self.responder_faq(pregunta, k=3)
+        if es_faq:
+            resultado = self.responder_faq(pregunta)
             resultado['tipo_busqueda'] = 'faq'
-            resultado['razon'] = 'Consulta operativa/FAQ detectada'
-        elif score_empresa > score_faq:
-            resultado = self.responder_sobre_empresa(pregunta, k=4)
+        else:
+            resultado = self.responder_sobre_empresa(pregunta)
             resultado['tipo_busqueda'] = 'empresa'
-            resultado['razon'] = 'Consulta corporativa/productos detectada'
-        else:
-            # Búsqueda híbrida
-            resultado_faq = self.responder_faq(pregunta, k=2)
-            resultado_empresa = self.responder_sobre_empresa(pregunta, k=2)
+        
+        return resultado
+    def generar_respuesta_conversacional(self, tipo: str, mensaje_usuario: str) -> dict:
+        """
+        Genera respuestas naturales y contextualizadas para saludos y despedidas
+        usando el LLM con información de la empresa
+        
+        Args:
+            tipo: 'saludo' o 'despedida'
+            mensaje_usuario: Mensaje original del usuario
+        
+        Returns:
+            dict con respuesta generada y metadata
+        """
+        try:
+            # Obtener hora actual para contextualizar
+            hora_actual = datetime.datetime.now().hour
             
-            # Seleccionar mejor resultado
-            if resultado_faq.get('mejor_score', 0) > resultado_empresa.get('mejor_score', 0):
-                resultado = resultado_faq
-                resultado['tipo_busqueda'] = 'faq'
+            if hora_actual < 12:
+                momento_dia = "mañana"
+                emoji_momento = "🌅"
+            elif hora_actual < 18:
+                momento_dia = "tarde"
+                emoji_momento = "☀️"
             else:
-                resultado = resultado_empresa
-                resultado['tipo_busqueda'] = 'empresa'
+                momento_dia = "noche"
+                emoji_momento = "🌙"
             
-            resultado['razon'] = 'Búsqueda híbrida (ambigüedad detectada)'
-        
-        return resultado
-
-
-# ROUTER SEMÁNTICO MEJORADO
-
-class UnifiedSemanticRouter:
-    """Router optimizado con mejores umbrales y caching"""
+            # Templates según el tipo de interacción
+            if tipo == "saludo":
+                template = """
+    Eres el asistente virtual de {nombre_empresa}, {descripcion_empresa}.
     
-    def __init__(self, embeddings, functions_data: List[Dict], faqs_data: List[Dict]):
-        self.embeddings = embeddings
-        self.functions_data = functions_data
-        self.faqs_data = faqs_data
-        
-        # Pre-calcular embeddings
-        self.func_texts = [
-            f"{f['id']} {f['docstring']} {' '.join(f.get('keywords', []))}"
-            for f in functions_data
-        ]
-        self.faq_texts = [f["text"] for f in faqs_data]
-        
-        print("🔄 Vectorizando funciones y FAQs...")
-        self.func_embeddings = np.array(self.embeddings.embed_documents(self.func_texts))
-        self.faq_embeddings = np.array(self.embeddings.embed_documents(self.faq_texts))
-        print(f"{len(self.func_embeddings)} funciones y {len(self.faq_embeddings)} FAQs vectorizadas")
-        
-        # Cache
-        self._cache = {}
+    El usuario te ha saludado diciendo: "{mensaje_usuario}"
     
-    @staticmethod
-    def _similitud_coseno(vec1: np.ndarray, vec2: np.ndarray) -> float:
-        """Calcula similitud coseno optimizada"""
-        dot = np.dot(vec1, vec2)
-        norm = np.linalg.norm(vec1) * np.linalg.norm(vec2)
-        return float(dot / norm) if norm > 0 else 0.0
+    CONTEXTO DE LA EMPRESA:
+    - Nombre: {nombre_empresa}
+    - Especialidad: {nicho}
+    - Slogan: "{slogan}"
+    - Servicios principales: {servicios_breve}
+    - Horario de atención: {horario_atencion}
     
-    def buscar_intencion(
-        self, 
-        query: str, 
-        umbral_func: float = 0.55,
-        umbral_faq: float = 0.50
-    ) -> Dict:
-        """Busca intención con umbrales diferenciados"""
-        
-        # Check cache
-        if query in self._cache:
-            return self._cache[query]
-        
-        # Embeddings de la consulta
-        query_emb = np.array(self.embeddings.embed_query(query))
-        
-        # Calcular similitudes
-        func_scores = [
-            self._similitud_coseno(query_emb, emb) 
-            for emb in self.func_embeddings
-        ]
-        best_func_idx = int(np.argmax(func_scores))
-        best_func_score = float(func_scores[best_func_idx])
-        
-        faq_scores = [
-            self._similitud_coseno(query_emb, emb) 
-            for emb in self.faq_embeddings
-        ]
-        best_faq_idx = int(np.argmax(faq_scores))
-        best_faq_score = float(faq_scores[best_faq_idx])
-        
-        # Decisión con umbrales diferenciados
-        resultado = None
-        
-        if best_func_score < umbral_func and best_faq_score < umbral_faq:
-            resultado = {
-                "tipo": "desconocido",
-                "score": max(best_func_score, best_faq_score),  # FIX: Agregar score
-                "score_func": best_func_score,
-                "score_faq": best_faq_score,
-                "mensaje": "No se detectó intención clara"
+    MOMENTO DEL DÍA: {momento_dia} (usar emoji: {emoji_momento})
+    
+    INSTRUCCIONES:
+    1. Responde el saludo de manera cálida y profesional adaptada al momento del día
+    2. Preséntate brevemente como el asistente de {nombre_empresa}
+    3. Menciona de forma natural 2-3 cosas que puedes hacer:
+       - Consultar información sobre productos y servicios
+       - Analizar el estado del inventario y hacer predicciones de stock
+       - Proporcionar información de contacto, horarios y políticas
+       - Responder preguntas frecuentes
+    4. Incluye el emoji apropiado del momento del día al inicio
+    5. Máximo 4 oraciones
+    6. Tono: Profesional, cercano y entusiasta
+    
+    EJEMPLO DE ESTRUCTURA:
+    "{emoji_momento} ¡[Saludo apropiado]! Soy [nombre], el asistente virtual de {nombre_empresa}. Puedo ayudarte a [acción 1], [acción 2] y [acción 3]. ¿En qué te puedo ayudar hoy?"
+    
+    Respuesta:
+                """
+                
+                servicios_breve = ", ".join(COMPANY_INFO['servicios'][:3])
+                
+                prompt = ChatPromptTemplate.from_template(template)
+                chain = prompt | self.llm | StrOutputParser()
+                
+                respuesta = chain.invoke({
+                    "nombre_empresa": COMPANY_INFO['nombre'],
+                    "descripcion_empresa": COMPANY_INFO['nicho'],
+                    "mensaje_usuario": mensaje_usuario,
+                    "nicho": COMPANY_INFO['nicho'],
+                    "slogan": COMPANY_INFO['slogan'],
+                    "servicios_breve": servicios_breve,
+                    "horario_atencion": COMPANY_INFO['horario']['atencion_cliente'],
+                    "momento_dia": momento_dia,
+                    "emoji_momento": emoji_momento
+                })
+                
+            elif tipo == "despedida":
+                template = """
+    Eres el asistente virtual de {nombre_empresa}, {descripcion_empresa}.
+    
+    El usuario se está despidiendo diciendo: "{mensaje_usuario}"
+    
+    CONTEXTO DE LA EMPRESA:
+    - Nombre: {nombre_empresa}
+    - Email de soporte: {email_soporte}
+    - WhatsApp: {whatsapp}
+    - Horario de atención: {horario_atencion}
+    
+    INSTRUCCIONES:
+    1. Responde la despedida de manera cordial y profesional
+    2. Agradece genuinamente por usar el servicio
+    3. Menciona disponibilidad futura de forma breve
+    4. Ofrece UN medio de contacto alternativo (email O WhatsApp, no ambos)
+    5. Incluye emoji de despedida (👋, 😊, o ✨)
+    6. Máximo 3 oraciones
+    7. Tono: Cálido, profesional y positivo
+    
+    EJEMPLO DE ESTRUCTURA:
+    "👋 [Despedida apropiada]. Gracias por contactar a {nombre_empresa}. Si necesitas más ayuda, estamos disponibles en [contacto] durante nuestro horario de atención."
+    
+    Respuesta:
+                """
+                
+                prompt = ChatPromptTemplate.from_template(template)
+                chain = prompt | self.llm | StrOutputParser()
+                
+                respuesta = chain.invoke({
+                    "nombre_empresa": COMPANY_INFO['nombre'],
+                    "descripcion_empresa": COMPANY_INFO['nicho'],
+                    "mensaje_usuario": mensaje_usuario,
+                    "email_soporte": COMPANY_INFO['contacto']['email_soporte'],
+                    "whatsapp": COMPANY_INFO['contacto']['whatsapp'],
+                    "horario_atencion": COMPANY_INFO['horario']['atencion_cliente']
+                })
+            
+            else:
+                # Tipo no reconocido, usar respuesta genérica con emoji
+                return {
+                    "message": f"👋 ¡Hola! Soy el asistente virtual de {COMPANY_INFO['nombre']}. ¿En qué puedo ayudarte hoy?",
+                    "confianza": "baja",
+                    "tipo_respuesta": "fallback",
+                    "momento_dia": momento_dia
+                }
+            
+            return {
+                "message": respuesta.strip(),
+                "confianza": "alta",
+                "tipo_respuesta": tipo,
+                "momento_dia": momento_dia,
+                "emoji_usado": emoji_momento if tipo == "saludo" else "👋"
             }
-        
-        elif best_func_score >= umbral_func and best_func_score >= best_faq_score:
-            resultado = {
-                "tipo": "accion",
-                "funcion": self.functions_data[best_func_idx]["id"],
-                "score": best_func_score,
-                "metadata": self.functions_data[best_func_idx]
+            
+        except Exception as e:
+            print(f"Error en generar_respuesta_conversacional: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Determinar momento del día para fallback
+            hora_actual = datetime.datetime.now().hour
+            if hora_actual < 12:
+                momento_dia = "mañana"
+                emoji_momento = "🌅"
+            elif hora_actual < 18:
+                momento_dia = "tarde"
+                emoji_momento = "☀️"
+            else:
+                momento_dia = "noche"
+                emoji_momento = "🌙"
+            
+            # Fallback según el tipo
+            if tipo == "saludo":
+                respuesta_fallback = (
+                    f"{emoji_momento} ¡Hola! Soy el asistente virtual de {COMPANY_INFO['nombre']}, "
+                    f"tu aliado en la distribución de snacks saludables. "
+                    f"Puedo ayudarte con consultas sobre productos, analizar el inventario, "
+                    f"o responder tus preguntas sobre nuestros servicios. ¿En qué te puedo ayudar?"
+                )
+            else:  # despedida
+                respuesta_fallback = (
+                    f"👋 ¡Gracias por contactar a {COMPANY_INFO['nombre']}! "
+                    f"Si necesitas más ayuda, escríbenos a {COMPANY_INFO['contacto']['whatsapp']} "
+                    f"o {COMPANY_INFO['contacto']['email_soporte']}. ¡Que tengas un excelente día!"
+                )
+            
+            return {
+                "message": respuesta_fallback,
+                "confianza": "media",
+                "tipo_respuesta": f"{tipo}_fallback",
+                "momento_dia": momento_dia,
+                "error": str(e)
             }
-        
-        else:
-            resultado = {
-                "tipo": "faq",
-                "respuesta": self.faqs_data[best_faq_idx]["answer"],
-                "score": best_faq_score,
-                "pregunta_original": self.faqs_data[best_faq_idx]["text"]
-            }
-        
-        # Guardar en cache
-        self._cache[query] = resultado
-        return resultado
-
-
-# FUNCIONES Y CONFIGURACIÓN
-
-def crear_router_integrado(rag_service: RAGKnowledgeService) -> UnifiedSemanticRouter:
-    """Factory para crear router con configuración mejorada"""
-    
-    FUNCTIONS = [
-        {
-            "id": "predecir_stock",
-            "docstring": "predecir inventario stock futuro días restantes agotamiento",
-            "keywords": ["predecir", "stock", "inventario", "quedan", "días"]
-        },
-        {
-            "id": "generar_alerta",
-            "docstring": "crear alerta notificación bajo stock crítico",
-            "keywords": ["alerta", "notificar", "avisar", "bajo"]
-        },
-        {
-            "id": "buscar_producto",
-            "docstring": "buscar producto SKU código encontrar consultar",
-            "keywords": ["buscar", "producto", "sku", "código", "encontrar"]
-        },
-        {
-            "id": "enviar_correo",
-            "docstring": "enviar mandar correo email reporte predicciones mensaje electrónico notificar envía",
-            "keywords": ["correo", "email", "enviar", "envía", "mandar", "manda", "mensaje", "notificar", "reporte", "predicciones"]
-        }
-    ]
-    
-    FAQS = [
-        {
-            "text": "horario atención servicio clientes abierto cerrado",
-            "answer": "Atención al cliente: Lunes a Viernes 8AM-6PM"
-        },
-        {
-            "text": "contacto teléfono whatsapp número llamar",
-            "answer": f"WhatsApp: {COMPANY_INFO['contacto']['whatsapp']}"
-        },
-        {
-            "text": "dirección ubicación dónde están oficina",
-            "answer": f"Dirección: {COMPANY_INFO['contacto']['direccion']}"
-        },
-        {
-            "text": "email correo ventas contactar escribir",
-            "answer": f"Ventas: {COMPANY_INFO['contacto']['email_ventas']}"
-        }
-    ]
-    
-    return UnifiedSemanticRouter(rag_service.embeddings, FUNCTIONS, FAQS)
-
-
-# SINGLETON PATTERN
-
 _rag_service = None
 
 def get_rag_service() -> RAGKnowledgeService:
-    """Obtiene instancia singleton del servicio RAG"""
     global _rag_service
     if _rag_service is None:
         _rag_service = RAGKnowledgeService()
     return _rag_service
+
+from typing import List, Dict
+import numpy as np
+
+class UnifiedSemanticRouter:
+    """Router que usa los mismos embeddings del RAG"""
+    
+    def __init__(self, embeddings, functions_data: List[Dict], intents_data: List[Dict]):
+        self.embeddings = embeddings
+        self.functions_data = functions_data
+        self.intents_data = intents_data  # Cambio: ahora son "intents" no "faqs"
+        
+        # Pre-calcular embeddings
+        self.func_texts = [f"{f['id']} {f['docstring']}" for f in functions_data]
+        self.intent_texts = [f["text"] for f in intents_data]
+        
+        print("Vectorizando funciones e intenciones con Google...")
+        self.func_embeddings = np.array(self.embeddings.embed_documents(self.func_texts))
+        self.intent_embeddings = np.array(self.embeddings.embed_documents(self.intent_texts))
+    
+    def _similitud_coseno(self, vec1, vec2):
+        dot = np.dot(vec1, vec2)
+        norm = np.linalg.norm(vec1) * np.linalg.norm(vec2)
+        return float(dot / norm) if norm > 0 else 0.0
+    
+    def buscar_intencion(self, query: str, umbral: float = 0.50):
+        query_emb = np.array(self.embeddings.embed_query(query))
+        
+        # Comparar con funciones
+        func_scores = [self._similitud_coseno(query_emb, emb) for emb in self.func_embeddings]
+        best_func_idx = int(np.argmax(func_scores))
+        best_func_score = float(func_scores[best_func_idx])
+        
+        # Comparar con intenciones (saludos, despedidas, etc)
+        intent_scores = [self._similitud_coseno(query_emb, emb) for emb in self.intent_embeddings]
+        best_intent_idx = int(np.argmax(intent_scores))
+        best_intent_score = float(intent_scores[best_intent_idx])
+        
+        # Decisión: ¿es una acción del sistema o una consulta general?
+        if best_func_score < umbral and best_intent_score < umbral:
+            return {"tipo": "rag", "score": max(best_func_score, best_intent_score)}
+        
+        if best_func_score >= best_intent_score:
+            funcion_id = self.functions_data[best_func_idx]["id"]
+            
+            # Si es saludo o despedida, marcarlo como "conversacional"
+            if funcion_id in ["saludo", "despedida"]:
+                return {
+                    "tipo": "conversacional",
+                    "subtipo": funcion_id,
+                    "score": best_func_score
+                }
+            
+            # Si es una acción real del sistema
+            return {
+                "tipo": "accion",
+                "funcion": funcion_id,
+                "score": best_func_score
+            }
+        else:
+            # Si coincide con una intención específica, usar RAG
+            intent_category = self.intents_data[best_intent_idx].get("categoria", "general")
+            return {
+                "tipo": "rag",
+                "categoria": intent_category,
+                "score": best_intent_score
+            }
+
+
+def crear_router_integrado(rag_service) -> UnifiedSemanticRouter:
+    """Crea router usando embeddings del RAG."""
+    
+    # Funciones/acciones del sistema
+    FUNCTIONS = [
+        {
+            "id": "predecir_all_stock",
+            "docstring": (
+                "predecir inventario calcular stock futuro y dias restantes "
+                "analizar consumo estimar agotamiento productos"
+            )
+        },
+        {
+            "id": "enviar_correo",
+            "docstring": (
+                "enviar mandar correo email notificación redactar mensaje electronico "
+                "avisar cliente o administrador"
+            )
+        },
+        {
+            "id": "productos_criticos",
+            "docstring": (
+                "buscar productos con stock critico alerta agotamiento "
+                "listado de productos urgentes"
+            )
+        },
+        {
+            "id": "saludo",
+            "docstring": (
+                "saludar hola buenos dias buenas tardes en que puedo ayudarte "
+                "mensaje de bienvenida iniciar conversacion"
+            )
+        },
+        {
+            "id": "despedida",
+            "docstring": (
+                "despedir adios hasta luego gracias por usar servicio "
+                "cerrar conversacion chao nos vemos"
+            )
+        }
+    ]
+    
+    # Intenciones para mejorar el routing (sin respuestas fijas)
+    INTENTS = [
+        {"text": "horario atención trabajo", "categoria": "horarios"},
+        {"text": "contacto teléfono whatsapp", "categoria": "contacto"},
+        {"text": "correo soporte ventas", "categoria": "contacto"},
+        {"text": "tiempo costo envío", "categoria": "envios"},
+        {"text": "métodos pago facturación", "categoria": "pagos"},
+        {"text": "productos disponibles categorías", "categoria": "productos"},
+        {"text": "política devoluciones garantía", "categoria": "politicas"},
+        {"text": "quienes son qué hacen empresa", "categoria": "empresa"}
+    ]
+    
+    return UnifiedSemanticRouter(
+        rag_service.embeddings,
+        FUNCTIONS,
+        INTENTS
+    )
+

@@ -1,105 +1,25 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
-from typing import Optional, Dict, Any, List
-from sqlalchemy.orm import Session
+from fastapi import FastAPI, UploadFile, File, HTTPException,Depends ,Query
+from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
+from pydantic import BaseModel
+from datetime import date
+from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku,obtener_minimum_stock_level
+from llm_service import get_llm_service
+from rag_service import get_rag_service
 import pandas as pd
 import os
 import numpy as np
-import time
-import re
+from paths import resolve_file
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
-# Modelos y servicios
-from model.modeloKeras import ModeloStockKeras, reentrenar_modelo_con_diferencias
-from model.registro_advanced import (
-    preparar_input_desde_dataset_procesado,
-    all_registers_priductos,
-    procesar_dataset_inventario,
-    buscar_producto_por_nombre,
-    buscar_nombre_por_sku,
-    obtener_minimum_stock_level
-)
 from model.database import SessionLocal
-from model.funciones import FUNCIONES_DISPONIBLES
-from llm_service import get_llm_service
-from rag_service import get_rag_service, crear_router_integrado
+from model.registro import Registro
 from dias_stock_service import DiasStockService
-from company_info import COMPANY_INFO
-
-from regex_handlers import procesar_mensaje_simple
-
-
-def extraer_parametros_del_mensaje(mensaje: str) -> Dict:
-    """
-    Extrae parámetros útiles del mensaje del usuario
-    
-    Returns:
-        Dict con parámetros encontrados
-    """
-    params = {}
-    
-    # Extraer SKU
-    sku_match = re.search(r'SKU[:\s-]*(\w+)', mensaje, re.IGNORECASE)
-    if sku_match:
-        params['sku'] = sku_match.group(1)
-    
-    # Extraer emails
-    emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', mensaje)
-    if emails:
-        params['destinatarios'] = emails
-    
-    # Extraer números (podrían ser días, cantidades, etc.)
-    numeros = re.findall(r'\b(\d+)\s*días?\b', mensaje, re.IGNORECASE)
-    if numeros:
-        params['dias'] = int(numeros[0])
-    
-    # Detectar palabras clave de urgencia
-    if any(palabra in mensaje.lower() for palabra in ['urgente', 'crítico', 'inmediato']):
-        params['urgencia'] = 'alta'
-    
-    # Detectar si pide envío de email
-    if any(palabra in mensaje.lower() for palabra in ['enviar', 'mandar', 'correo', 'email', 'notificar']):
-        params['enviar_email'] = True
-    
-    return params
-
-
-class ChatInput(BaseModel):
-    mensaje: str = Field(..., min_length=1, max_length=500, description="Mensaje del usuario")
-    usuario_id: Optional[str] = Field(None, description="ID del usuario para tracking")
-    contexto: Optional[Dict[str, Any]] = Field(None, description="Contexto adicional")
-    
-    @validator('mensaje')
-    def mensaje_no_vacio(cls, v):
-        if not v.strip():
-            raise ValueError('El mensaje no puede estar vacío')
-        return v.strip()
-
-
-class ChatResponse(BaseModel):
-    respuesta: str
-    metodo: str
-    tipo: Optional[str] = None
-    confianza: Optional[float] = None
-    fuentes: Optional[List] = None
-    resultado_funcion: Optional[Dict] = None
-    metadata: Optional[Dict] = None
-    tiempo_procesamiento: Optional[float] = None
-
-
-class ErrorResponse(BaseModel):
-    error: str
-    detalle: Optional[str] = None
-    codigo: str
-    timestamp: str
-
+from rag_service import get_rag_service, crear_router_integrado
+# from regex_handlers import procesar_mensaje_simple
+from model.funciones import ACTIONS_MAP
 app = FastAPI()
-
-# Variables globales para servicios
-dias_stock_service = None
-rag_service = None
-router = None
-llm_service = None
+dias_stock_service = DiasStockService()
 
 app.add_middleware(
     CORSMiddleware,
@@ -109,95 +29,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-async def startup_event():
-    """
-    Inicializa todos los servicios pesados durante el startup
-    para evitar segfaults por carga durante requests
-    """
-    global dias_stock_service, rag_service, router, llm_service
-    
-    print("Iniciando carga de servicios...")
-    
-    # 1. Servicio de días de stock (ligero)
-    try:
-        dias_stock_service = DiasStockService()
-        print("DiasStockService cargado")
-    except Exception as e:
-        print(f"Error cargando DiasStockService: {e}")
-    
-    # 2. Servicio RAG (pesado - FAISS + embeddings)
-    try:
-        rag_service = get_rag_service()
-        print("RAG Service cargado")
-    except Exception as e:
-        print(f"Error cargando RAG Service: {e}")
-        rag_service = None
-    
-    # 3. Router integrado (requiere RAG)
-    try:
-        if rag_service:
-            router = crear_router_integrado(rag_service)
-            print("Router integrado cargado")
-    except Exception as e:
-        print(f"Error cargando Router integrado: {e}")
-        router = None
-    
-    # 4. Servicio LLM (opcional)
-    try:
-        llm_service = get_llm_service()
-        print("LLM Service cargado")
-    except Exception as e:
-        print(f"LLM Service no disponible: {e}")
-        llm_service = None
-    
-    print("🎉 Todos los servicios iniciados")
+# mis_funciones = [
+#     {"id": "saludo", "docstring": "hola buenos días saludo inicial bienvenida"},
+#     {"id": "despedida", "docstring": "adiós hasta luego cerrar chat terminar"},
+#     {"id": "enviar_correo", "docstring": "enviar mandar correo email redactar mensaje electronico"},
+#     {"id": "calculo_stock", "docstring": "calcular días stock restante inventario cuanto queda mercadería bodega"}
+# ]
 
-def convertir_numpy_a_python(obj):
-    """Convierte tipos numpy a tipos nativos de Python para serialización JSON"""
-    if isinstance(obj, np.floating):
-        return float(obj)
-    elif isinstance(obj, np.integer):
-        return int(obj)
-    elif isinstance(obj, dict):
-        return {k: convertir_numpy_a_python(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [convertir_numpy_a_python(item) for item in obj]
-    return obj
+# mis_faqs = [
+#     {"text": "horario atencion hora abren", "answer": "Atendemos de 9 a 18hs."},
+#     {"text": "precio costo valor", "answer": "Los precios dependen del catálogo actual."}
+# ]
 
-# Variable global para el modelo
-modelo = None
 
-@app.on_event("startup")
-async def load_keras_model():
-    """
-    Carga el modelo Keras durante el startup en un hilo separado
-    para evitar bloquear la inicialización
-    """
-    global modelo
-    try:
-        import gc
-        import tensorflow as tf
-        
-        # Configurar TensorFlow para usar menos memoria
-        tf.config.set_soft_device_placement(True)
-        
-        # Limitar memoria GPU si está disponible
-        gpus = tf.config.list_physical_devices('GPU')
-        if gpus:
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-        
-        print("Cargando modelo Keras...")
-        modelo = ModeloStockKeras()
-        print("Modelo Keras cargado exitosamente")
-        
-        # Forzar garbage collection
-        gc.collect()
-        
-    except Exception as e:
-        print(f"Error cargando modelo Keras: {e}")
-        modelo = None
+# router_engine = SemanticRouter(mis_funciones, mis_faqs)
+# Inicializar servicio LLM
+rag_service = get_rag_service()
+router = crear_router_integrado(rag_service)
+
+try:
+    llm_service = get_llm_service()
+except Exception as e:
+    print(f"Advertencia: No se pudo inicializar el servicio LLM: {e}")
+    llm_service = None
+
+# Inicializar servicio RAG
+try:
+    rag_service = get_rag_service()
+    print("Servicio RAG inicializado correctamente")
+except Exception as e:
+    print(f"Advertencia: No se pudo inicializar el servicio RAG: {e}")
+    rag_service = None
+class ChatInput(BaseModel):
+    mensaje: str
+# Cargar modelo
+modelo = ModeloStockKeras()
+
 def get_db():
     db = SessionLocal()
     try:
@@ -205,10 +72,60 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/modelo/info")
+@app.post("/chat")
+def chat_endpoint(request: ChatInput):
+    """
+    Endpoint principal del chatbot con routing inteligente
+    """
+    decision = router.buscar_intencion(request.mensaje)
+
+    # Caso 1: Conversaciones naturales (saludo/despedida) -> Usar RAG
+    if decision["tipo"] == "conversacional":
+        subtipo = decision["subtipo"]
+        resultado_rag = rag_service.generar_respuesta_conversacional(
+            tipo=subtipo,
+            mensaje_usuario=request.mensaje
+        )
+        return {
+            "tipo": "conversacional",
+            "subtipo": subtipo,
+            "score": decision["score"],
+            "resultado": {
+                    "message": resultado_rag["message"]
+                },
+            "metadata": {
+                "confianza": resultado_rag["confianza"]
+            }
+        }
+
+    # Caso 2: Acciones del sistema (predicciones, correos, alertas)
+    if decision["tipo"] == "accion":
+        accion_id = decision["funcion"]
+
+        if accion_id in ACTIONS_MAP:
+            resultado = ACTIONS_MAP[accion_id]()
+            return {
+                "tipo": "accion",
+                "accion": accion_id,
+                "score": decision["score"],
+                "resultado": resultado
+            }
+        else:
+            return {
+                "error": f"No existe la acción '{accion_id}' en ACTIONS_MAP"
+            }
+
+    # Caso 3: Consulta general (RAG - FAQs o info de empresa)
+    resultado = rag_service.responder_pregunta_general(request.mensaje)
+    return {
+        "tipo": "rag",
+        "score": decision.get("score", 0.0),
+        "resultado": resultado
+            
+    }
+
+@app.get("/predictPornombre")
 def predict(fecha: str, nombre: str):
-    if modelo is None:
-        raise HTTPException(status_code=503, detail="Modelo no disponible")
 
     try:
         # Obtener SKU desde el CSV
@@ -264,11 +181,60 @@ def predict(fecha: str, nombre: str):
             detail=f"Error al predecir: {str(e)}"
         )
 
+@app.get("/predictPorID")
+def predict(fecha: str, id: int):
+
+    try:
+        sku = buscar_producto_por_id(id)
+        
+        if sku is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontró ningún producto con id '{id}'"
+            )
+
+        features = preparar_input_desde_dataset_procesado(
+            sku=sku,
+            fecha_override=fecha
+        )
+
+        pred = modelo.predecir(features)
+        
+        nombre_producto = buscar_nombre_por_sku(sku)
+        
+        # Obtener minimum_stock_level del producto
+        minimum_stock = obtener_minimum_stock_level(sku) or 20.0
+        
+        mensaje_llm = None
+        if llm_service:
+            try:
+                mensaje_llm = llm_service.generar_mensaje_prediccion(
+                    nombre_producto=nombre_producto,
+                    sku=sku,
+                    fecha=fecha,
+                    prediccion=float(pred),
+                    minimum_stock_level=minimum_stock
+                )
+            except Exception as llm_error:
+                print(f"Error generando mensaje LLM: {llm_error}")
+
+        return {
+            "id_ingresado": id,
+            "nombre_producto": nombre_producto,
+            "sku_detectado": sku,
+            "fecha_prediccion": fecha,
+            "prediction": float(pred),
+            "mensaje": mensaje_llm or f"Predicción para {nombre_producto}: {pred:.2f} unidades disponibles para {fecha}"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al predecir: {str(e)}"
+        )
+
 @app.get("/predictAll")
 def predict(fecha: str):
-    if modelo is None:
-        raise HTTPException(status_code=503, detail="Modelo no disponible")
-    
     productos = all_registers_priductos()
     resultados = []
     
@@ -420,189 +386,97 @@ def reentrenar_modelo():
             detail=f"Error durante el reentrenamiento: {str(e)}"
         )
 
-@app.post("/chat", response_model=ChatResponse, tags=["Chat"])
-async def chat_endpoint(
-    data: ChatInput,
-    db: Session = Depends(get_db)
-):
-    """
-    Endpoint principal de chat con routing inteligente de 3 niveles
-    """
-    
-    inicio = time.time()
-    mensaje = data.mensaje
-    
+
+        
+@app.post("/cargar-csv")
+def cargar_csv(db: SessionLocal = Depends(get_db)):
     try:
-        # NIVEL 1: REGEX - Respuestas instantáneas
-        respuesta_simple = procesar_mensaje_simple(mensaje)
-        
-        if respuesta_simple:
-            print(f"[NIVEL 1 - REGEX] Respuesta rápida: {respuesta_simple['tipo']}")
-            return ChatResponse(
-                respuesta=respuesta_simple["respuesta"],
-                metodo="regex",
-                tipo=respuesta_simple["tipo"],
-                confianza=1.0,
-                tiempo_procesamiento=time.time() - inicio
-            )
-        
-        # NIVEL 2: ROUTER SEMÁNTICO - Detección de intenciones
-        print(f"[NIVEL 2 - ROUTER] Analizando intención...")
-        intencion = router.buscar_intencion(
-            mensaje,
-            umbral_func=0.60,
-            umbral_faq=0.55
-        )
-        
-        # Validación defensiva: Asegurar que score siempre exista
-        if 'score' not in intencion:
-            intencion['score'] = max(
-                intencion.get('score_func', 0.0),
-                intencion.get('score_faq', 0.0)
-            )
-        
-        print(f"   └─ Tipo: {intencion['tipo']} | Score: {intencion['score']:.3f}")
-        
-        # CASO 2A: ACCIÓN DETECTADA → Ejecutar función con BD
-        if intencion["tipo"] == "accion" and intencion["score"] > 0.58:
-            nombre_func = intencion["funcion"]
-            print(f"   └─ 🎯 Función detectada: {nombre_func}")
-            
-            if nombre_func not in FUNCIONES_DISPONIBLES:
-                raise HTTPException(
-                    status_code=501,
-                    detail=f"La función '{nombre_func}' no está implementada"
-                )
-            
-            try:
-                # Extraer parámetros del mensaje
-                params_extraidos = extraer_parametros_del_mensaje(mensaje)
-                
-                # Combinar con params del request
-                if data.contexto:
-                    params_extraidos.update(data.contexto)
-                
-                print(f"Ejecutando función: {nombre_func}")
-                print(f"Parámetros: {params_extraidos}")
-                
-                # EJECUTAR FUNCIÓN REAL CON BD
-                resultado_funcion = FUNCIONES_DISPONIBLES[nombre_func](
-                    mensaje=mensaje,
-                    db=db,
-                    params=params_extraidos
-                )
-                
-                print(f"Función ejecutada: {resultado_funcion.get('exito', 'N/A')}")
-                
-                # Verificar si la función fue exitosa
-                if not resultado_funcion.get('exito', True):
-                    return ChatResponse(
-                        respuesta=resultado_funcion.get('mensaje', resultado_funcion.get('error', 'Error desconocido')),
-                        metodo="router_accion_error",
-                        tipo="error",
-                        resultado_funcion=resultado_funcion,
-                        tiempo_procesamiento=time.time() - inicio
-                    )
-                
-                # Generar explicación en lenguaje natural con LLM
-                prompt_explicacion = f"""
-Eres un asistente de UPS Tuti. El usuario solicitó: "{mensaje}"
+        df = pd.read_csv("model/files/dataset.csv")
 
-Se ejecutó la función: {nombre_func}
+        # Si existe la columna id, eliminarla porque es autoincremental
+        if "id" in df.columns:
+            df = df.drop(columns=["id"])
 
-Resultado de la función:
-{resultado_funcion}
+        # Convertir columnas fecha
+        date_cols = [
+            "created_at", "last_order_date", "last_stock_count_date",
+            "last_updated_at", "expiration_date"
+        ]
 
-INSTRUCCIONES:
-1. Explica de forma clara y profesional qué se hizo
-2. Resume los resultados principales (2-3 puntos clave)
-3. Si hay alertas o problemas, destácalos
-4. Sugiere próximos pasos si es relevante
-5. Máximo 5 oraciones
-6. Usa emojis sutilmente para claridad visual
+        for col in date_cols:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+                df[col] = df[col].astype("object").where(df[col].notna(), None)
+                df[col] = df[col].apply(lambda x: x.date() if x is not None else None)
 
-Responde en español, tono profesional pero amigable.
-                """
-                
-                respuesta_llm = rag_service.llm.invoke(prompt_explicacion)
-                
-                return ChatResponse(
-                    respuesta=respuesta_llm.content,
-                    metodo="router_accion_ejecutada",
-                    tipo="accion",
-                    confianza=float(intencion["score"]),
-                    resultado_funcion=resultado_funcion,
-                    metadata={
-                        "funcion": nombre_func,
-                        "score_router": float(intencion["score"]),
-                        "parametros_usados": params_extraidos
-                    },
-                    tiempo_procesamiento=time.time() - inicio
+        # Convertir booleanos
+        bool_cols = ["vacaciones_o_no", "es_feriado", "temporada_alta", "is_active"]
+        for col in bool_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.lower().map(
+                    {"true": True, "1": True, "false": False, "0": False}
                 )
-            
-            except Exception as e:
-                print(f"Error ejecutando {nombre_func}: {e}")
-                
-                return ChatResponse(
-                    respuesta=f"Ocurrió un error al procesar tu solicitud. " +
-                              f"Por favor intenta de nuevo o contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}",
-                    metodo="router_accion_error",
-                    tipo="error",
-                    metadata={
-                        "error": str(e),
-                        "funcion": nombre_func
-                    },
-                    tiempo_procesamiento=time.time() - inicio
-                )
-        
-        # CASO 2B: FAQ DETECTADA → Respuesta directa
-        if intencion["tipo"] == "faq" and intencion["score"] > 0.60:
-            return ChatResponse(
-                respuesta=intencion["respuesta"],
-                metodo="router_faq",
-                tipo="faq",
-                confianza=float(intencion["score"]),
-                metadata={
-                    "pregunta_original": intencion.get("pregunta_original", "N/A"),
-                    "score_router": float(intencion["score"])
-                },
-                tiempo_procesamiento=time.time() - inicio
-            )
-        
-        # NIVEL 3: RAG - Búsqueda contextual avanzada
-        print(f"[NIVEL 3 - RAG] Procesando: {mensaje}")
-        
-        resultado_rag = rag_service.responder_pregunta_general(mensaje)
-        
-        print(f"   └─ Tipo búsqueda: {resultado_rag.get('tipo_busqueda', 'N/A')}")
-        print(f"   └─ Confianza: {resultado_rag.get('confianza', 'N/A')}")
-        print(f"   └─ # Fuentes: {resultado_rag.get('num_fuentes', 0)}")
-        print(f"   └─ Longitud respuesta: {len(resultado_rag.get('respuesta', ''))} caracteres")
-        
-        # Convertir todos los valores numpy a tipos nativos de Python
-        resultado_rag = convertir_numpy_a_python(resultado_rag)
-        
-        return ChatResponse(
-            respuesta=resultado_rag["respuesta"],
-            metodo="rag",
-            tipo=resultado_rag.get("tipo_busqueda", "general"),
-            confianza=resultado_rag.get("confianza"),
-            fuentes=resultado_rag.get("fuentes"),
-            metadata={
-                "num_fuentes": resultado_rag.get("num_fuentes", 0),
-                "mejor_score": resultado_rag.get("mejor_score"),
-                "razon": resultado_rag.get("razon")
-            },
-            tiempo_procesamiento=time.time() - inicio
-        )
-    
-    except HTTPException as he:
-        raise he
+
+        registros = [
+            Registro(**row.dropna().to_dict()) for _, row in df.iterrows()
+        ]
+
+        db.add_all(registros)
+        db.commit()
+
+        return {"message": "CSV cargado con éxito", "total": len(registros)}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Error cargando CSV: {str(e)}")
+
+
+@app.get("/check-db-full")
+def check_db_full():
+    try:
+        db = SessionLocal()
+        result = db.execute(text("SELECT COUNT(*) FROM registros"))
+        total = result.scalar()
+        return {"status": "OK", "tabla": "registros", "total_registros": total}
     
     except Exception as e:
-        print(f"Error general en chat_endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+    
+    finally:
+        db.close()
         
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error interno del servidor. Contacta a soporte: {COMPANY_INFO['contacto']['email_soporte']}"
+
+@app.get("/analisis-stock")
+def analizar_stock_desde_bd(db: SessionLocal = Depends(get_db)):
+    
+    # 1. Obtener solo el registro más reciente por producto
+    registros = (
+        db.query(
+            Registro.product_name,
+            Registro.average_daily_usage,
+            Registro.quantity_on_hand,
+            Registro.created_at
         )
+        .distinct(Registro.product_name)  # ← evita duplicados
+        .order_by(Registro.product_name, Registro.created_at.desc())  # ← selecciona el más reciente
+        .all()
+    )
+
+    if not registros:
+        return {"mensaje": "No hay datos para analizar."}
+
+    # 2. Construir lote
+    productos_lote = [
+        {
+            "nombre": r.product_name,
+            "stock": r.quantity_on_hand,
+            "ventas_diarias": r.average_daily_usage
+        }
+        for r in registros
+    ]
+
+    # 3. Analizar lote
+    resultado = dias_stock_service.analizar_lote_productos(productos_lote)
+
+    return resultado
+

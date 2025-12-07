@@ -1,423 +1,460 @@
-"""
-Funciones de negocio completas integradas con la base de datos
-UPS Tuti - Sistema de Gestión de Inventario
-"""
+import smtplib
+from email.mime.text import MIMEText
+from typing import Dict, Any, Optional, List
+from datetime import datetime
+import numpy as np
 
-from typing import Dict, List, Optional
-from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-import re
-
-# Importar tus modelos y servicios
-from model.registro import Registro  # Tu modelo SQLAlchemy
+from model.registro_advanced import (
+    preparar_input_desde_dataset_procesado,
+    all_registers_priductos,
+    procesar_dataset_inventario,
+    buscar_producto_por_id,
+    buscar_producto_por_nombre,
+    buscar_nombre_por_sku,
+    obtener_minimum_stock_level
+)
+from llm_service import get_llm_service
+from model.database import SessionLocal
+from model.modeloKeras import ModeloStockKeras
 from dias_stock_service import DiasStockService
+from model.registro import Registro
 from email_service import EmailService
 
-# ============================================================================
-# SERVICIOS SINGLETON
-# ============================================================================
-
+# Inicialización de servicios
 dias_stock_service = DiasStockService()
+modelo = ModeloStockKeras()
 email_service = EmailService()
 
 
-# ============================================================================
-# FUNCIÓN 1: PREDECIR STOCK
-# ============================================================================
-
-def predecir_stock(mensaje: str, db: Session, params: Optional[Dict] = None) -> Dict:
-    """Predice el stock futuro de un producto específico"""
-    try:
-        sku_extraido = None
-        nombre_extraido = None
-        dias_prediccion = 7
-        
-        sku_match = re.search(r'SKU[:\s-]*(\w+)', mensaje, re.IGNORECASE)
-        if sku_match:
-            sku_extraido = sku_match.group(1)
-        
-        if params:
-            sku_extraido = params.get('sku', sku_extraido)
-            nombre_extraido = params.get('nombre', nombre_extraido)
-            dias_prediccion = params.get('dias', dias_prediccion)
-        
-        query = db.query(Registro).filter(Registro.is_active == True)
-        
-        if sku_extraido:
-            query = query.filter(Registro.product_sku.ilike(f"%{sku_extraido}%"))
-        elif nombre_extraido:
-            query = query.filter(Registro.product_name.ilike(f"%{nombre_extraido}%"))
-        else:
-            palabras = mensaje.lower().split()
-            for palabra in palabras:
-                if len(palabra) > 3:
-                    query = query.filter(Registro.product_name.ilike(f"%{palabra}%"))
-                    break
-        
-        registro = query.order_by(desc(Registro.created_at)).first()
-        
-        if not registro:
-            return {
-                "exito": False,
-                "mensaje": "No se encontró el producto en la base de datos",
-                "sugerencia": "Verifica el SKU o nombre del producto"
-            }
-        
-        analisis = dias_stock_service.calcular_dias_restantes(
-            stock_actual=registro.quantity_available or registro.quantity_on_hand,
-            ventas_diarias=registro.average_daily_usage or 0,
-            nombre_producto=registro.product_name
-        )
-        
-        stock_predicho = registro.quantity_on_hand - (registro.average_daily_usage * dias_prediccion)
-        stock_predicho = max(0, stock_predicho)
-        
-        necesita_reorden = registro.quantity_on_hand <= registro.reorder_point
-        
-        return {
-            "exito": True,
-            "producto": {
-                "id": registro.product_id,
-                "nombre": registro.product_name,
-                "sku": registro.product_sku,
-                "categoria": registro.categoria_producto
-            },
-            "stock_actual": {
-                "en_mano": registro.quantity_on_hand,
-                "disponible": registro.quantity_available,
-                "ubicacion": f"{registro.warehouse_location} - {registro.shelf_location}"
-            },
-            "analisis_dias": {
-                "dias_restantes": analisis['dias_restantes'],
-                "fecha_agotamiento": analisis['fecha_agotamiento_estimada'],
-                "estado": analisis['estado'],
-                "urgencia": analisis['urgencia']
-            },
-            "prediccion": {
-                "dias_proyectados": dias_prediccion,
-                "stock_estimado": round(stock_predicho, 2),
-                "alcanza": stock_predicho > 0
-            },
-            "necesita_reorden": necesita_reorden,
-            "recomendacion": analisis['recomendacion']
-        }
+class APIResponse:
+    """Clase para estandarizar respuestas de la API"""
     
-    except Exception as e:
-        return {
-            "exito": False,
-            "error": f"Error al predecir stock: {str(e)}"
+    @staticmethod
+    def success(message: str, data: Optional[Dict[str, Any]] = None, title: str = "Operación exitosa") -> Dict[str, Any]:
+        """Respuesta exitosa estándar"""
+        response = {
+            "status": "success",
+            "title": title,
+            "message": message,
+            "timestamp": datetime.now().isoformat(),
+            "data": data or {}
         }
+        return response
+    
+    @staticmethod
+    def error(message: str, error_detail: Optional[str] = None, title: str = "Error") -> Dict[str, Any]:
+        """Respuesta de error estándar"""
+        response = {
+            "status": "error",
+            "title": title,
+            "message": message,
+            "timestamp": datetime.now().isoformat(),
+            "data": {}
+        }
+        if error_detail:
+            response["error_detail"] = error_detail
+        return response
+    
+    @staticmethod
+    def warning(message: str, data: Optional[Dict[str, Any]] = None, title: str = "Advertencia") -> Dict[str, Any]:
+        """Respuesta de advertencia estándar"""
+        response = {
+            "status": "warning",
+            "title": title,
+            "message": message,
+            "timestamp": datetime.now().isoformat(),
+            "data": data or {}
+        }
+        return response
+    
+    @staticmethod
+    def critical(message: str, data: Optional[Dict[str, Any]] = None, title: str = "Alerta Crítica") -> Dict[str, Any]:
+        """Respuesta crítica estándar"""
+        response = {
+            "status": "critical",
+            "title": title,
+            "message": message,
+            "timestamp": datetime.now().isoformat(),
+            "data": data or {}
+        }
+        return response
 
 
-# ============================================================================
-# FUNCIÓN 2: GENERAR ALERTA
-# ============================================================================
-
-def generar_alerta(mensaje: str, db: Session, params: Optional[Dict] = None) -> Dict:
-    """Genera alertas de bajo stock para productos críticos"""
+def predecir_all_stock(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Ejecuta predicción de inventario para todos los productos
+    
+    Args:
+        data: dict opcional con 'fecha' (formato 'YYYY-MM-DD')
+    
+    Returns:
+        dict con respuesta estandarizada de la API
+    """
     try:
-        tipo_alerta = params.get('tipo', 'critico') if params else 'critico'
+        # Obtener fecha
+        fecha = data.get('fecha') if data else None
+        if not fecha:
+            fecha = datetime.now().strftime('%Y-%m-%d')
         
-        subquery = (
-            db.query(
-                Registro.product_name,
-                func.max(Registro.created_at).label('max_date')
-            )
-            .filter(Registro.is_active == True)
-            .group_by(Registro.product_name)
-            .subquery()
-        )
+        # Obtener todos los productos
+        productos = all_registers_priductos()
+        resultados = []
         
-        registros = (
-            db.query(Registro)
-            .join(
-                subquery,
-                (Registro.product_name == subquery.c.product_name) &
-                (Registro.created_at == subquery.c.max_date)
-            )
-            .all()
-        )
-        
-        if not registros:
-            return {
-                "exito": False,
-                "mensaje": "No hay registros activos para analizar"
-            }
-        
-        productos_lote = [
-            {
-                "nombre": r.product_name,
-                "stock": r.quantity_available or r.quantity_on_hand,
-                "ventas_diarias": r.average_daily_usage or 0
-            }
-            for r in registros
-        ]
-        
-        analisis = dias_stock_service.analizar_lote_productos(productos_lote)
-        
-        alertas_generadas = []
-        
-        for resultado in analisis['resultados_detallados']:
-            incluir = False
+        # Procesar cada producto
+        for prod in productos:
+            features = preparar_input_desde_dataset_procesado(sku=prod, fecha_override=fecha)
             
-            if tipo_alerta == 'critico':
-                incluir = 'CRÍTICO' in resultado['estado']
-            elif tipo_alerta == 'todo':
-                incluir = True
-            elif tipo_alerta == 'alerta':
-                incluir = 'ALERTA' in resultado['estado'] or 'CRÍTICO' in resultado['estado']
-            
-            if incluir:
-                reg = next((r for r in registros if r.product_name == resultado['producto']), None)
+            if features is not None and np.any(features):
+                pred = modelo.predecir(features)
+                nombre = buscar_nombre_por_sku(prod)
+                minimum_stock = obtener_minimum_stock_level(prod) or 20.0
                 
-                alerta = {
-                    "producto": resultado['producto'],
-                    "sku": reg.product_sku if reg else "N/A",
-                    "dias_restantes": resultado['dias_restantes'],
-                    "estado": resultado['estado'],
-                    "urgencia": resultado['urgencia'],
-                    "stock_actual": resultado['stock_actual'],
-                    "recomendacion": resultado['recomendacion']
-                }
-                alertas_generadas.append(alerta)
-        
-        alertas_generadas.sort(key=lambda x: x['dias_restantes'])
-        
-        return {
-            "exito": True,
-            "id_alerta": f"ALT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            "fecha_generacion": datetime.now().isoformat(),
-            "resumen": {
-                "total_productos_analizados": analisis['total_productos'],
-                "productos_criticos": analisis['productos_criticos'],
-                "alertas_generadas": len(alertas_generadas)
-            },
-            "alertas": alertas_generadas,
-            "mensaje_ejecutivo": analisis['resumen']
-        }
-    
-    except Exception as e:
-        return {
-            "exito": False,
-            "error": f"Error al generar alerta: {str(e)}"
-        }
-
-
-# ============================================================================
-# FUNCIÓN 3: BUSCAR PRODUCTO
-# ============================================================================
-
-def buscar_producto(mensaje: str, db: Session, params: Optional[Dict] = None) -> Dict:
-    """Busca productos en la base de datos"""
-    try:
-        sku_buscar = None
-        nombre_buscar = None
-        limit = 10
-        
-        if params:
-            sku_buscar = params.get('sku')
-            nombre_buscar = params.get('nombre')
-            limit = params.get('limit', 10)
-        
-        if not any([sku_buscar, nombre_buscar]):
-            sku_match = re.search(r'SKU[:\s-]*(\w+)', mensaje, re.IGNORECASE)
-            if sku_match:
-                sku_buscar = sku_match.group(1)
-            else:
-                nombre_buscar = mensaje.replace('buscar', '').replace('producto', '').strip()
-        
-        query = db.query(Registro).filter(Registro.is_active == True)
-        
-        if sku_buscar:
-            query = query.filter(Registro.product_sku.ilike(f"%{sku_buscar}%"))
-        
-        if nombre_buscar:
-            query = query.filter(Registro.product_name.ilike(f"%{nombre_buscar}%"))
-        
-        subquery = (
-            query
-            .with_entities(
-                Registro.product_name,
-                func.max(Registro.created_at).label('max_date')
-            )
-            .group_by(Registro.product_name)
-            .subquery()
-        )
-        
-        resultados = (
-            db.query(Registro)
-            .join(
-                subquery,
-                (Registro.product_name == subquery.c.product_name) &
-                (Registro.created_at == subquery.c.max_date)
-            )
-            .limit(limit)
-            .all()
-        )
-        
-        if not resultados:
-            return {
-                "encontrado": False,
-                "mensaje": "No se encontraron productos con esos criterios"
-            }
-        
-        productos_encontrados = []
-        
-        for reg in resultados:
-            dias_info = dias_stock_service.calcular_dias_restantes(
-                stock_actual=reg.quantity_available or reg.quantity_on_hand,
-                ventas_diarias=reg.average_daily_usage or 0,
-                nombre_producto=reg.product_name
-            )
-            
-            producto = {
-                "id": reg.product_id,
-                "nombre": reg.product_name,
-                "sku": reg.product_sku,
-                "categoria": reg.categoria_producto,
-                "stock": {
-                    "en_mano": reg.quantity_on_hand,
-                    "disponible": reg.quantity_available,
-                    "dias_restantes": dias_info['dias_restantes'],
-                    "urgencia": dias_info['urgencia']
-                },
-                "ubicacion": {
-                    "almacen": reg.warehouse_location,
-                    "region": reg.region_almacen
-                },
-                "proveedor": reg.supplier_name
-            }
-            
-            productos_encontrados.append(producto)
-        
-        return {
-            "encontrado": True,
-            "total_resultados": len(productos_encontrados),
-            "productos": productos_encontrados
-        }
-    
-    except Exception as e:
-        return {
-            "encontrado": False,
-            "error": f"Error al buscar producto: {str(e)}"
-        }
-
-
-# ============================================================================
-# FUNCIÓN 4: ENVIAR CORREO
-# ============================================================================
-
-def enviar_correo(mensaje: str, db: Session, params: Optional[Dict] = None) -> Dict:
-    """Envía correo electrónico con reportes de inventario"""
-    try:
-        destinatarios = []
-        
-        if params and 'destinatarios' in params:
-            destinatarios = params['destinatarios']
-        else:
-            emails_encontrados = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', mensaje)
-            destinatarios = emails_encontrados
-        
-        if not destinatarios:
-            destinatarios = ["gerencia@upstuti.com"]
-        
-        incluir_criticos = params.get('incluir_criticos', True) if params else True
-        
-        subquery = (
-            db.query(
-                Registro.product_name,
-                func.max(Registro.created_at).label('max_date')
-            )
-            .filter(Registro.is_active == True)
-            .group_by(Registro.product_name)
-            .subquery()
-        )
-        
-        registros = (
-            db.query(Registro)
-            .join(
-                subquery,
-                (Registro.product_name == subquery.c.product_name) &
-                (Registro.created_at == subquery.c.max_date)
-            )
-            .all()
-        )
-        
-        productos_lote = [
-            {
-                "nombre": r.product_name,
-                "stock": r.quantity_available or r.quantity_on_hand,
-                "ventas_diarias": r.average_daily_usage or 0
-            }
-            for r in registros
-        ]
-        
-        analisis = dias_stock_service.analizar_lote_productos(productos_lote)
-        
-        productos_para_reporte = []
-        
-        for resultado in analisis['resultados_detallados']:
-            if incluir_criticos:
-                if 'CRÍTICO' in resultado['estado'] or 'ALERTA' in resultado['estado']:
-                    productos_para_reporte.append({
-                        "nombre": resultado['producto'],
-                        "stock_predicho": resultado['stock_actual'],
-                        "estado": resultado['estado']
-                    })
-            else:
-                productos_para_reporte.append({
-                    "nombre": resultado['producto'],
-                    "stock_predicho": resultado['stock_actual'],
-                    "estado": resultado['estado']
+                resultados.append({
+                    "sku": prod,
+                    "nombre": nombre,
+                    "prediccion": float(pred),
+                    "minimum_stock": minimum_stock
                 })
         
-        if not productos_para_reporte:
-            return {
-                "exito": False,
-                "mensaje": "No hay productos que cumplan los criterios para el reporte"
+        if not resultados:
+            return APIResponse.warning(
+                message="No se encontraron productos con datos suficientes para realizar predicciones.",
+                title="⚠️ Sin datos de predicción",
+                data={
+                    "fecha_prediccion": fecha,
+                    "total_productos": 0,
+                    "predictions": []
+                }
+            )
+        
+        # Generar mensaje resumen con LLM
+        mensaje_resumen = None
+        llm_service = get_llm_service()
+        
+        if llm_service and resultados:
+            try:
+                resultados_ordenados = sorted(resultados, key=lambda x: x['prediccion'])
+                
+                stock_critico = [r for r in resultados if r['prediccion'] < r['minimum_stock']]
+                stock_precaucion = [r for r in resultados 
+                                   if r['minimum_stock'] <= r['prediccion'] < r['minimum_stock'] * 1.5]
+                stock_adecuado = [r for r in resultados if r['prediccion'] >= r['minimum_stock'] * 1.5]
+                
+                predicciones_valores = [r['prediccion'] for r in resultados]
+                min_pred = min(predicciones_valores)
+                max_pred = max(predicciones_valores)
+                
+                producto_min = next(r for r in resultados if r['prediccion'] == min_pred)
+                producto_max = next(r for r in resultados if r['prediccion'] == max_pred)
+                
+                estadisticas = {
+                    'promedio': sum(predicciones_valores) / len(predicciones_valores),
+                    'minimo': min_pred,
+                    'maximo': max_pred,
+                    'producto_minimo': producto_min['nombre'],
+                    'producto_maximo': producto_max['nombre']
+                }
+                
+                mensaje_resumen = llm_service.generar_mensaje_multiple(
+                    fecha=fecha,
+                    total_productos=len(resultados),
+                    predicciones_destacadas=resultados_ordenados[:10],
+                    stock_critico=stock_critico,
+                    stock_adecuado=stock_adecuado,
+                    estadisticas=estadisticas
+                )
+            except Exception as llm_error:
+                print(f"Error generando mensaje resumen: {llm_error}")
+                import traceback
+                traceback.print_exc()
+        
+        # Mensaje fallback
+        if not mensaje_resumen:
+            num_criticos = len([r for r in resultados if r['prediccion'] < r['minimum_stock']])
+            mensaje_resumen = (
+                f"Se analizaron {len(resultados)} productos para la fecha {fecha}. "
+                f"{num_criticos} productos requieren atención urgente por stock crítico."
+            )
+        
+        return APIResponse.success(
+            message=mensaje_resumen,
+            title="📦 Predicción de inventario",
+            data={
+                "fecha_prediccion": fecha,
+                "total_productos": len(resultados),
+                "productos_criticos": len([r for r in resultados if r['prediccion'] < r['minimum_stock']]),
+                "productos_analizados": len(resultados)
             }
+        )
         
-        resultados_envio = []
+    except Exception as e:
+        print(f"Error en predecir_all_stock: {e}")
+        import traceback
+        traceback.print_exc()
+        return APIResponse.error(
+            message="No se pudo completar el análisis de predicción de inventario.",
+            error_detail=str(e),
+            title="❌ Error en predicción"
+        )
+
+
+def productos_criticos(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Identifica productos con stock crítico consultando la base de datos
+    y genera un análisis con LLM
+    
+    Args:
+        data: dict opcional (no se usa actualmente)
+    
+    Returns:
+        dict con respuesta estandarizada de la API
+    """
+    try:
+        db = SessionLocal()
         
-        for destinatario in destinatarios:
-            resultado = email_service.enviar_reporte_prediccion(
-                destinatario=destinatario,
-                fecha=datetime.now().strftime("%Y-%m-%d"),
-                predicciones=productos_para_reporte,
-                resumen=analisis['resumen']
+        try:
+            # Consultar registros de la base de datos
+            registros = (
+                db.query(
+                    Registro.product_name,
+                    Registro.average_daily_usage,
+                    Registro.quantity_on_hand,
+                    Registro.created_at
+                )
+                .distinct(Registro.product_name)
+                .order_by(Registro.product_name, Registro.created_at.desc())
+                .all()
+            )
+
+            if not registros:
+                return APIResponse.warning(
+                    message="No hay registros en la base de datos para analizar el estado del inventario.",
+                    title="⚠️ Sin datos disponibles"
+                )
+
+            # Construir lote de productos
+            productos_lote = [
+                {
+                    "nombre": r.product_name,
+                    "stock": r.quantity_on_hand,
+                    "ventas_diarias": r.average_daily_usage
+                }
+                for r in registros
+            ]
+            
+            # Analizar con el servicio de días de stock
+            resultado = dias_stock_service.analizar_lote_productos(productos_lote)
+            
+            # Generar mensaje con LLM
+            llm_service = get_llm_service()
+            mensaje_resumen = None
+            
+            if llm_service:
+                try:
+                    resultados_detallados = resultado.get('resultados_detallados', [])
+                    criticos = [r for r in resultados_detallados if "CRÍTICO" in r.get('estado', '')]
+                    alertas = [r for r in resultados_detallados if "ALERTA" in r.get('estado', '')]
+                    
+                    if criticos:
+                        print(f"DEBUG - Ejemplo de producto crítico: {criticos[0]}")
+                    
+                    mensaje_resumen = llm_service.generar_mensaje_productos_criticos(
+                        total_productos=resultado['total_productos'],
+                        productos_criticos=criticos,
+                        productos_alerta=alertas,
+                        productos_ok=resultado['productos_ok']
+                    )
+                    
+                except Exception as llm_error:
+                    print(f"Error generando mensaje con LLM: {llm_error}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Mensaje fallback
+            if not mensaje_resumen:
+                mensaje_resumen = resultado.get('resumen', 'Análisis de inventario completado.')
+            
+            # Determinar respuesta según criticidad
+            productos_criticos_count = resultado['productos_criticos']
+            productos_alerta_count = resultado['productos_alerta']
+            
+            response_data = {
+                "total_productos": resultado['total_productos'],
+                "productos_criticos": productos_criticos_count,
+                "productos_alerta": productos_alerta_count,
+                "productos_ok": resultado['productos_ok']
+            }
+            
+            if productos_criticos_count > 0:
+                return APIResponse.critical(
+                    message=mensaje_resumen,
+                    title="🚨 Alerta: Productos críticos detectados",
+                    data=response_data
+                )
+            elif productos_alerta_count > 0:
+                return APIResponse.warning(
+                    message=mensaje_resumen,
+                    title="⚠️ Atención: Productos requieren reabastecimiento",
+                    data=response_data
+                )
+            else:
+                return APIResponse.success(
+                    message=mensaje_resumen,
+                    title="✅ Inventario bajo control",
+                    data=response_data
+                )
+            
+        finally:
+            db.close()
+        
+    except Exception as e:
+        print(f"Error en productos_criticos: {e}")
+        import traceback
+        traceback.print_exc()
+        return APIResponse.error(
+            message="No se pudo completar el análisis de productos críticos.",
+            error_detail=str(e),
+            title="❌ Error al analizar productos"
+        )
+
+
+def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Envía notificación por correo electrónico con análisis de inventario
+    
+    Args:
+        data: dict opcional con:
+            - 'tipo': 'prediccion' o 'criticos' (default: 'criticos')
+            - 'destinatario': email destino (default: 'venotacu@gmail.com')
+            - 'incluir_analisis': bool para incluir análisis LLM (default: True)
+    
+    Returns:
+        dict con respuesta estandarizada de la API
+    """
+    try:
+        # Parámetros
+        tipo_reporte = data.get('tipo', 'criticos') if data else 'criticos'
+        destinatario = data.get('destinatario', 'venotacu@gmail.com') if data else 'venotacu@gmail.com'
+        incluir_analisis = data.get('incluir_analisis', True) if data else True
+        
+        # Obtener análisis de productos críticos
+        resultado = productos_criticos()
+        if resultado.get('status') == 'error':
+            return resultado
+        
+        resumen = resultado.get('message', 'Análisis de productos críticos')
+        asunto_tipo = "Alerta de Stock Crítico"
+        
+        # Obtener datos de la base de datos
+        db = SessionLocal()
+        try:
+            registros = (
+                db.query(
+                    Registro.product_name,
+                    Registro.average_daily_usage,
+                    Registro.quantity_on_hand,
+                    Registro.created_at
+                )
+                .distinct(Registro.product_name)
+                .order_by(Registro.product_name, Registro.created_at.desc())
+                .all()
             )
             
-            resultados_envio.append({
-                "destinatario": destinatario,
-                "exito": resultado['exito']
-            })
+            productos_lote = [
+                {
+                    "nombre": r.product_name,
+                    "stock": r.quantity_on_hand,
+                    "ventas_diarias": r.average_daily_usage
+                }
+                for r in registros
+            ]
+            
+            analisis = dias_stock_service.analizar_lote_productos(productos_lote)
+            
+            # Filtrar solo críticos y alertas para el email
+            resultados_detallados = analisis.get('resultados_detallados', [])
+            productos_importantes = [
+                r for r in resultados_detallados 
+                if "CRÍTICO" in r.get('estado', '') or "ALERTA" in r.get('estado', '')
+            ]
+            
+            datos_email = [
+                {
+                    "nombre": p.get('producto', 'Desconocido'),
+                    "stock_predicho": p.get('stock_actual', 0),
+                    "estado": p.get('estado', 'OK')
+                }
+                for p in productos_importantes[:20]
+            ]
+            
+        finally:
+            db.close()
         
-        envios_exitosos = sum(1 for r in resultados_envio if r['exito'])
+        # Enviar email
+        fecha_actual = datetime.now().strftime('%Y-%m-%d')
         
-        return {
-            "exito": envios_exitosos > 0,
-            "total_destinatarios": len(destinatarios),
-            "envios_exitosos": envios_exitosos,
-            "destinatarios": destinatarios,
-            "resultados": resultados_envio,
-            "mensaje": f"Se enviaron {envios_exitosos} de {len(destinatarios)} emails correctamente"
-        }
-    
+        resultado_envio = email_service.enviar_reporte_prediccion(
+            destinatario=destinatario,
+            fecha=fecha_actual,
+            predicciones=datos_email,
+            resumen=resumen
+        )
+        
+        # Generar mensaje con LLM sobre el resultado del envío
+        if resultado_envio.get('exito'):
+            llm_service = get_llm_service()
+            mensaje_confirmacion = None
+            
+            if llm_service and incluir_analisis:
+                try:
+                    mensaje_confirmacion = llm_service.generar_mensaje_envio_email(
+                        destinatario=destinatario,
+                        tipo_reporte=asunto_tipo,
+                        num_productos=len(datos_email),
+                        fecha=fecha_actual,
+                        resumen_contenido=resumen[:200]
+                    )
+                except Exception as llm_error:
+                    print(f"Error generando mensaje con LLM: {llm_error}")
+            
+            # Mensaje fallback
+            if not mensaje_confirmacion:
+                mensaje_confirmacion = (
+                    f"Reporte enviado exitosamente a {destinatario}. "
+                    f"Se incluyó el análisis de {len(datos_email)} productos con fecha {fecha_actual}."
+                )
+            
+            return APIResponse.success(
+                message=mensaje_confirmacion,
+                title="📧 Correo enviado",
+                data={
+                    "destinatario": destinatario,
+                    "tipo_reporte": asunto_tipo,
+                    "productos_enviados": len(datos_email),
+                    "fecha": fecha_actual
+                }
+            )
+        else:
+            return APIResponse.error(
+                message=f"No se pudo enviar el correo a {destinatario}.",
+                error_detail=resultado_envio.get('error', 'Error desconocido'),
+                title="❌ Error al enviar correo"
+            )
+        
     except Exception as e:
-        return {
-            "exito": False,
-            "error": f"Error al enviar correo: {str(e)}"
-        }
+        print(f"Error en enviar_correo: {e}")
+        import traceback
+        traceback.print_exc()
+        return APIResponse.error(
+            message="No se pudo completar el envío del correo electrónico.",
+            error_detail=str(e),
+            title="❌ Error al procesar envío"
+        )
 
 
-# ============================================================================
-# MAPEO DE FUNCIONES
-# ============================================================================
-
-FUNCIONES_DISPONIBLES = {
-    "predecir_stock": predecir_stock,
-    "generar_alerta": generar_alerta,
-    "buscar_producto": buscar_producto,
-    "enviar_correo": enviar_correo,
+# Mapeo de acciones disponibles
+ACTIONS_MAP = {
+    "predecir_all_stock": predecir_all_stock,
+    "productos_criticos": productos_criticos,
+    "enviar_correo": enviar_correo
 }
