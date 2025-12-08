@@ -45,65 +45,29 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """
-    Inicializa todos los servicios pesados durante el startup
-    para evitar segfaults por carga durante requests
+    Inicializa solo el modelo - servicios pesados se cargan bajo demanda
     """
-    global dias_stock_service, rag_service, router, llm_service, modelo
+    global modelo
     
-    print("🚀 Iniciando carga de servicios...")
+    print("🚀 Iniciando carga del modelo...")
     
-    # 1. Servicio de días de stock
-    try:
-        dias_stock_service = DiasStockService()
-        print("DiasStockService cargado")
-    except Exception as e:
-        print(f"Error cargando DiasStockService: {e}")
-    
-    # 2. Servicio RAG (FAISS + embeddings)
-    try:
-        rag_service = get_rag_service()
-        print("RAG Service cargado")
-    except Exception as e:
-        print(f"Error cargando RAG Service: {e}")
-        rag_service = None
-    
-    # 3. Router integrado
-    try:
-        if rag_service:
-            router = crear_router_integrado(rag_service)
-            print("Router integrado cargado")
-    except Exception as e:
-        print(f"Error cargando Router integrado: {e}")
-        router = None
-    
-    # 4. Servicio LLM
-    try:
-        llm_service = get_llm_service()
-        print("LLM Service cargado")
-    except Exception as e:
-        print(f"LLM Service no disponible: {e}")
-        llm_service = None
-    
-    # 5. Modelo Keras
     try:
         import gc
         import tensorflow as tf
         
         tf.config.set_soft_device_placement(True)
-        gpus = tf.config.list_physical_devices('GPU')
-        if gpus:
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
+        # Deshabilitar GPU para evitar CUDA errors
+        tf.config.set_visible_devices([], 'GPU')
         
         print("📦 Cargando modelo Keras...")
         modelo = ModeloStockKeras()
-        print("Modelo Keras cargado")
+        print("✅ Modelo Keras cargado")
         gc.collect()
     except Exception as e:
-        print(f"Error cargando modelo Keras: {e}")
+        print(f"❌ Error cargando modelo Keras: {e}")
         modelo = None
     
-    print("Todos los servicios iniciados")
+    print("✅ Startup completado (servicios se cargarán bajo demanda)")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -133,6 +97,52 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Lazy loading de servicios pesados
+def get_rag_service_lazy():
+    global rag_service
+    if rag_service is None:
+        try:
+            print("⏳ Cargando RAG Service...")
+            rag_service = get_rag_service()
+            print("✅ RAG Service cargado")
+        except Exception as e:
+            print(f"❌ Error cargando RAG: {e}")
+    return rag_service
+
+def get_llm_service_lazy():
+    global llm_service
+    if llm_service is None:
+        try:
+            print("⏳ Cargando LLM Service...")
+            llm_service = get_llm_service()
+            print("✅ LLM Service cargado")
+        except Exception as e:
+            print(f"❌ Error cargando LLM: {e}")
+    return llm_service
+
+def get_router_lazy():
+    global router, rag_service
+    if router is None:
+        rag = get_rag_service_lazy()
+        if rag:
+            try:
+                print("⏳ Cargando Router...")
+                router = crear_router_integrado(rag)
+                print("✅ Router cargado")
+            except Exception as e:
+                print(f"❌ Error cargando Router: {e}")
+    return router
+
+def get_dias_stock_service_lazy():
+    global dias_stock_service
+    if dias_stock_service is None:
+        try:
+            dias_stock_service = DiasStockService()
+            print("✅ DiasStockService cargado")
+        except Exception as e:
+            print(f"❌ Error cargando DiasStockService: {e}")
+    return dias_stock_service
 
 # EXPORTACIÓN A PDF
 
@@ -176,7 +186,8 @@ def exportar_pdf_endpoint(
         
         # Generar mensaje LLM (reutilizar lógica de /predictAll)
         mensaje_llm = None
-        if llm_service:
+        llm = get_llm_service_lazy()
+        if llm:
             try:
                 resultados_ordenados = sorted(predicciones, key=lambda x: x['prediccion'])
                 stock_critico = [r for r in predicciones if r['prediccion'] < r['minimum_stock']]
@@ -196,7 +207,7 @@ def exportar_pdf_endpoint(
                     'producto_maximo': producto_max['nombre']
                 }
                 
-                mensaje_llm = llm_service.generar_mensaje_multiple(
+                mensaje_llm = llm.generar_mensaje_multiple(
                     fecha=fecha,
                     total_productos=len(predicciones),
                     predicciones_destacadas=resultados_ordenados,
@@ -284,12 +295,19 @@ def chat_endpoint(request: ChatInput):
     """
     Endpoint principal del chatbot con routing inteligente
     """
-    decision = router.buscar_intencion(request.mensaje)
+    # Lazy load de servicios
+    router_instance = get_router_lazy()
+    rag_instance = get_rag_service_lazy()
+    
+    if not router_instance or not rag_instance:
+        raise HTTPException(status_code=503, detail="Servicios RAG no disponibles")
+    
+    decision = router_instance.buscar_intencion(request.mensaje)
 
     # Caso 1: Conversaciones naturales (saludo/despedida) -> Usar RAG
     if decision["tipo"] == "conversacional":
         subtipo = decision["subtipo"]
-        resultado_rag = rag_service.generar_respuesta_conversacional(
+        resultado_rag = rag_instance.generar_respuesta_conversacional(
             tipo=subtipo,
             mensaje_usuario=request.mensaje
         )
@@ -323,7 +341,7 @@ def chat_endpoint(request: ChatInput):
             }
 
     # Caso 3: Consulta general (RAG - FAQs o info de empresa)
-    resultado = rag_service.responder_pregunta_general(request.mensaje)
+    resultado = rag_instance.responder_pregunta_general(request.mensaje)
     return {
         "tipo": "rag",
         "score": decision.get("score", 0.0),
@@ -361,9 +379,10 @@ def predict(fecha: str, nombre: str):
         
         # Generar mensaje con LLM
         mensaje_llm = None
-        if llm_service:
+        llm = get_llm_service_lazy()
+        if llm:
             try:
-                mensaje_llm = llm_service.generar_mensaje_prediccion(
+                mensaje_llm = llm.generar_mensaje_prediccion(
                     nombre_producto=nombre_completo,
                     sku=sku,
                     fecha=fecha,
@@ -413,9 +432,10 @@ def predict(fecha: str, id: int):
         minimum_stock = obtener_minimum_stock_level(sku) or 20.0
         
         mensaje_llm = None
-        if llm_service:
+        llm = get_llm_service_lazy()
+        if llm:
             try:
-                mensaje_llm = llm_service.generar_mensaje_prediccion(
+                mensaje_llm = llm.generar_mensaje_prediccion(
                     nombre_producto=nombre_producto,
                     sku=sku,
                     fecha=fecha,
