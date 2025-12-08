@@ -328,5 +328,5 @@ if __name__ == "__main__":
         mensaje_llm=mensaje_llm,
         tipo_reporte="completo"
     )
-    print(f"✅ PDF generado exitosamente: {pdf_path}")
-    print(f"\n📂 Abre el archivo para verificar: {pdf_path}")
+    print(f"PDF generado exitosamente: {pdf_path}")
+    print(f"\nAbre el archivo para verificar: {pdf_path}")

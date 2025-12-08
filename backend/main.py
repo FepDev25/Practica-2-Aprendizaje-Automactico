@@ -55,33 +55,33 @@ async def startup_event():
     # 1. Servicio de días de stock
     try:
         dias_stock_service = DiasStockService()
-        print("✅ DiasStockService cargado")
+        print("DiasStockService cargado")
     except Exception as e:
-        print(f"❌ Error cargando DiasStockService: {e}")
+        print(f"Error cargando DiasStockService: {e}")
     
     # 2. Servicio RAG (FAISS + embeddings)
     try:
         rag_service = get_rag_service()
-        print("✅ RAG Service cargado")
+        print("RAG Service cargado")
     except Exception as e:
-        print(f"❌ Error cargando RAG Service: {e}")
+        print(f"Error cargando RAG Service: {e}")
         rag_service = None
     
     # 3. Router integrado
     try:
         if rag_service:
             router = crear_router_integrado(rag_service)
-            print("✅ Router integrado cargado")
+            print("Router integrado cargado")
     except Exception as e:
-        print(f"❌ Error cargando Router integrado: {e}")
+        print(f"Error cargando Router integrado: {e}")
         router = None
     
     # 4. Servicio LLM
     try:
         llm_service = get_llm_service()
-        print("✅ LLM Service cargado")
+        print("LLM Service cargado")
     except Exception as e:
-        print(f"⚠️  LLM Service no disponible: {e}")
+        print(f"LLM Service no disponible: {e}")
         llm_service = None
     
     # 5. Modelo Keras
@@ -97,13 +97,32 @@ async def startup_event():
         
         print("📦 Cargando modelo Keras...")
         modelo = ModeloStockKeras()
-        print("✅ Modelo Keras cargado")
+        print("Modelo Keras cargado")
         gc.collect()
     except Exception as e:
-        print(f"❌ Error cargando modelo Keras: {e}")
+        print(f"Error cargando modelo Keras: {e}")
         modelo = None
     
-    print("🎉 Todos los servicios iniciados")
+    print("Todos los servicios iniciados")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Limpia recursos al cerrar la aplicación
+    """
+    global dias_stock_service, rag_service, router, llm_service, modelo
+    
+    print("🛑 Iniciando shutdown...")
+    
+    # Cerrar EmailService executor
+    try:
+        from email_service import get_email_service
+        email_svc = get_email_service()
+        email_svc.shutdown()
+    except Exception as e:
+        print(f"Error cerrando EmailService: {e}")
+    
+    print("Shutdown completado")
 
 class ChatInput(BaseModel):
     mensaje: str

@@ -24,8 +24,13 @@ class ModeloStockKeras:
 
     def _cargar_modelo(self):
         try:
+            import warnings
+            # 🔧 Suprimir warning de optimizador (no afecta predicción)
+            warnings.filterwarnings('ignore', category=UserWarning, 
+                                  message='.*Skipping variable loading for optimizer.*')
+            
             modelo_ruta = resolve_file(self.modelo_path)
-            self.model = load_model(str(modelo_ruta))
+            self.model = load_model(str(modelo_ruta), compile=False)  # No necesitamos compilar para inferencia
             print(f"Modelo Keras cargado desde: {modelo_ruta}")
         except Exception as e:
             print(f"Error al cargar el modelo Keras: {e}")

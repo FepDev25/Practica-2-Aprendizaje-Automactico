@@ -9,6 +9,9 @@ from email.mime.multipart import MIMEMultipart
 from email.header import Header
 import os
 from datetime import datetime
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 # Cargamos variables desde .env
 try:
@@ -24,6 +27,10 @@ class EmailService:
         self.smtp_port = 587
         self.email_from = os.getenv("EMAIL_FROM", "sistema@upstuti.com")
         self.email_password = os.getenv("EMAIL_PASSWORD")  # Gmail App Password
+        
+        # 🔧 FIX SEGFAULT: ThreadPoolExecutor para envíos no bloqueantes
+        self.executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="email_sender")
+        self._lock = threading.Lock()
 
         # Validar credenciales
         if not self.email_from or not self.email_password:
@@ -213,19 +220,30 @@ class EmailService:
             html_part = MIMEText(html, 'html', 'utf-8')
             mensaje.attach(html_part)
             
-            # Enviar
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as servidor:
-                servidor.starttls()
-                servidor.login(self.email_from, self.email_password)
-                #  FIX: send_message maneja UTF-8 automáticamente
-                servidor.send_message(mensaje)
+            # 🔧 FIX SEGFAULT: Enviar en thread separado con lock para evitar conflictos
+            def _enviar_smtp():
+                with self._lock:
+                    try:
+                        with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=30) as servidor:
+                            servidor.starttls()
+                            servidor.login(self.email_from, self.email_password)
+                            servidor.send_message(mensaje)
+                        return True
+                    except Exception as e:
+                        print(f"❌ Error en thread SMTP: {e}")
+                        raise
             
-            print(f" Email enviado exitosamente a {destinatario}")
-            return {
-                "exito": True,
-                "mensaje": f"Reporte enviado a {destinatario}",
-                "fecha_envio": datetime.now().isoformat()
-            }
+            # Ejecutar en thread pool para no bloquear
+            future = self.executor.submit(_enviar_smtp)
+            result = future.result(timeout=45)  # Esperar máximo 45 segundos
+            
+            if result:
+                print(f" Email enviado exitosamente a {destinatario}")
+                return {
+                    "exito": True,
+                    "mensaje": f"Reporte enviado a {destinatario}",
+                    "fecha_envio": datetime.now().isoformat()
+                }
         
         except Exception as e:
             print(f" Error al enviar email: {e}")
@@ -289,7 +307,7 @@ class EmailService:
                   
                   <p>El PDF incluye:</p>
                   <ul>
-                    <li>✅ Predicciones detalladas por producto</li>
+                    <li>Predicciones detalladas por producto</li>
                     <li>📊 Análisis ejecutivo generado por IA</li>
                     <li>🎯 Productos críticos priorizados</li>
                     <li>📈 Resumen estadístico completo</li>
@@ -320,23 +338,35 @@ class EmailService:
             )
             mensaje.attach(adjunto)
             
-            # Enviar
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.email_from, self.email_password)
-                server.send_message(mensaje)
+            # 🔧 FIX SEGFAULT: Enviar en thread separado
+            def _enviar_smtp_pdf():
+                with self._lock:
+                    try:
+                        with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=30) as server:
+                            server.starttls()
+                            server.login(self.email_from, self.email_password)
+                            server.send_message(mensaje)
+                        return True
+                    except Exception as e:
+                        print(f"❌ Error en thread SMTP (PDF): {e}")
+                        raise
             
-            return {
-                "exito": True,
-                "mensaje": f"✅ Reporte PDF enviado a {destinatario}",
-                "destinatario": destinatario,
-                "archivo": nombre_archivo
-            }
+            # Ejecutar en thread pool
+            future = self.executor.submit(_enviar_smtp_pdf)
+            result = future.result(timeout=45)
+            
+            if result:
+                return {
+                    "exito": True,
+                    "mensaje": f"Reporte PDF enviado a {destinatario}",
+                    "destinatario": destinatario,
+                    "archivo": nombre_archivo
+                }
         
         except Exception as e:
             return {
                 "exito": False,
-                "error": f"❌ Error al enviar email: {str(e)}"
+                "error": f"Error al enviar email: {str(e)}"
             }
 
 
@@ -387,6 +417,14 @@ class EmailService:
         """
         
         return tabla
+    
+    def shutdown(self):
+        """Limpia recursos del executor al cerrar"""
+        try:
+            self.executor.shutdown(wait=True, cancel_futures=False)
+            print("✓ EmailService executor cerrado correctamente")
+        except Exception as e:
+            print(f"⚠️ Error cerrando executor: {e}")
 
 
 # Singleton para EmailService
