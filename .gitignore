@@ -65,3 +65,7 @@ mlruns/
 backend/env/
 *.zip
 *.tar.gz
+
+# Reportes PDF generados
+backend/reportes/
+*.pdf
