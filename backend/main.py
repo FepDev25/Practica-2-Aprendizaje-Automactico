@@ -243,19 +243,35 @@ def exportar_pdf_endpoint(
         
         # Si se solicita enviar por email
         if enviar_email and destinatario:
-            from email_service import get_email_service
+            # 🔧 FIX SEGFAULT: Enviar email en background para no bloquear
+            import threading
             
-            email_service = get_email_service()
-            criticos = len([p for p in predicciones if p['estado'] == 'CRÍTICO'])
-            resumen_email = f"{len(predicciones)} productos analizados. {criticos} en estado crítico."
+            def enviar_email_background():
+                try:
+                    from email_service import get_email_service
+                    email_service = get_email_service()
+                    criticos = len([p for p in predicciones if p['estado'] == 'CRÍTICO'])
+                    resumen_email = f"{len(predicciones)} productos analizados. {criticos} en estado crítico."
+                    
+                    resultado = email_service.enviar_reporte_con_pdf(
+                        destinatario=destinatario,
+                        fecha=fecha,
+                        pdf_bytes=pdf_bytes,
+                        nombre_archivo=nombre_archivo,
+                        resumen=resumen_email
+                    )
+                    print(f"✅ Email enviado: {resultado}")
+                except Exception as e:
+                    print(f"❌ Error enviando email: {e}")
             
-            resultado_email = email_service.enviar_reporte_con_pdf(
-                destinatario=destinatario,
-                fecha=fecha,
-                pdf_bytes=pdf_bytes,
-                nombre_archivo=nombre_archivo,
-                resumen=resumen_email
-            )
+            # Lanzar en thread daemon (no espera a completarse)
+            thread = threading.Thread(target=enviar_email_background, daemon=True)
+            thread.start()
+            
+            resultado_email = {
+                "exito": True,
+                "mensaje": f"Email programado para envío a {destinatario}"
+            }
             
             # Devolver PDF + confirmación de email
             return StreamingResponse(

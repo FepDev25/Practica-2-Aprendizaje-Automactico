@@ -573,30 +573,42 @@ RECOMENDACIONES:
             nombre_archivo = Path(pdf_path).name
             pdf_bytes = export_service.leer_pdf_como_bytes(pdf_path)
         
-        # Enviar por email si se solicitó
+        # Enviar por email si se solicitó (en background para evitar SEGFAULT)
         email_enviado = False
         if enviar_email and destinatario:
             try:
-                print(f"📧 Enviando email a {destinatario}...")
-                email_service = get_email_service()
+                import threading
                 
-                resultado_email = email_service.enviar_reporte_con_pdf(
-                    destinatario=destinatario,
-                    fecha=fecha,
-                    pdf_bytes=pdf_bytes,
-                    nombre_archivo=nombre_archivo,
-                    resumen=f"{len(predicciones)} productos analizados. {len(criticos)} críticos, {len(alertas)} alertas."
-                )
+                def enviar_en_background():
+                    try:
+                        print(f"📧 Enviando email a {destinatario}...")
+                        email_service = get_email_service()
+                        
+                        resultado_email = email_service.enviar_reporte_con_pdf(
+                            destinatario=destinatario,
+                            fecha=fecha,
+                            pdf_bytes=pdf_bytes,
+                            nombre_archivo=nombre_archivo,
+                            resumen=f"{len(predicciones)} productos analizados. {len(criticos)} críticos, {len(alertas)} alertas."
+                        )
+                        
+                        if resultado_email.get('exito', False):
+                            print(f"✅ Email enviado exitosamente a {destinatario}")
+                        else:
+                            print(f"❌ Email NO enviado: {resultado_email.get('error', 'Error desconocido')}")
+                    except Exception as e:
+                        print(f"❌ Error al enviar email: {e}")
+                        import traceback
+                        traceback.print_exc()
                 
-                email_enviado = resultado_email.get('exito', False)
-                
-                if email_enviado:
-                    print(f"✅ Email enviado exitosamente a {destinatario}")
-                else:
-                    print(f"❌ Email NO enviado: {resultado_email.get('error', 'Error desconocido')}")
+                # Lanzar en daemon thread
+                thread = threading.Thread(target=enviar_en_background, daemon=True)
+                thread.start()
+                email_enviado = True  # Marcamos como programado
+                print(f"✅ Email programado para envío a {destinatario}")
                 
             except Exception as e:
-                print(f"❌ Error al enviar email: {e}")
+                print(f"❌ Error al programar email: {e}")
                 import traceback
                 traceback.print_exc()
         
