@@ -8,6 +8,7 @@ import pandas as pd
 import os
 import numpy as np
 import time
+import io 
 
 # Modelos y servicios
 from model.modeloKeras import ModeloStockKeras, reentrenar_modelo_con_diferencias
@@ -143,17 +144,17 @@ def exportar_pdf_endpoint(
     destinatario: str = None
 ):
     """
-    Genera PDF de predicciones y opcionalmente lo envía por email
-    
-    Llamado desde:
-    - Chat (comando "exporta a PDF")
-    - Botón en frontend
+    Genera PDF de predicciones y lo devuelve directamente como descarga
+    O lo envía por email si se solicita
     """
+    from fastapi.responses import StreamingResponse
+    import io
+    
     if modelo is None:
         raise HTTPException(status_code=503, detail="Modelo no disponible")
     
     try:
-        # Obtener predicciones (reutilizar lógica de /predictAll)
+        # Obtener predicciones
         productos = all_registers_priductos()
         predicciones = []
         
@@ -164,17 +165,27 @@ def exportar_pdf_endpoint(
                 nombre = buscar_nombre_por_sku(prod)
                 minimum_stock = obtener_minimum_stock_level(prod) or 20.0
                 
+                # Determinar estado
+                if pred < minimum_stock:
+                    estado = "CRÍTICO"
+                elif pred < minimum_stock * 1.5:
+                    estado = "ALERTA"
+                else:
+                    estado = "OK"
+                
                 predicciones.append({
                     "sku": prod,
                     "nombre": nombre,
-                    "prediccion": float(pred),
-                    "minimum_stock": minimum_stock
+                    "stock_predicho": float(pred),
+                    "prediccion": float(pred),  # compatibilidad
+                    "minimum_stock": minimum_stock,
+                    "estado": estado
                 })
         
         if not predicciones:
             raise HTTPException(status_code=404, detail="No se encontraron predicciones")
         
-        # Generar mensaje LLM (reutilizar lógica de /predictAll)
+        # Generar mensaje LLM
         mensaje_llm = None
         if llm_service:
             try:
@@ -207,25 +218,24 @@ def exportar_pdf_endpoint(
             except Exception as llm_error:
                 print(f"Error generando mensaje LLM: {llm_error}")
         
-        # Generar PDF
+        # Generar PDF EN MEMORIA
         export_service = get_export_service()
-        pdf_path = export_service.generar_pdf_reporte(
+        pdf_bytes = export_service.generar_pdf_en_memoria(
             fecha=fecha,
             predicciones=predicciones,
             mensaje_llm=mensaje_llm,
             tipo_reporte="completo"
         )
         
-        # Enviar por email si se solicita
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nombre_archivo = f"Reporte_Stock_{fecha.replace('-', '')}_{timestamp}.pdf"
+        
+        # Si se solicita enviar por email
         if enviar_email and destinatario:
-            from email_service import EmailService
-            email_service = EmailService()
+            from email_service import get_email_service
             
-            pdf_bytes = export_service.leer_pdf_como_bytes(pdf_path)
-            nombre_archivo = Path(pdf_path).name
-            
-            # Resumen corto para email
-            criticos = len([p for p in predicciones if p['prediccion'] < p['minimum_stock']])
+            email_service = get_email_service()
+            criticos = len([p for p in predicciones if p['estado'] == 'CRÍTICO'])
             resumen_email = f"{len(predicciones)} productos analizados. {criticos} en estado crítico."
             
             resultado_email = email_service.enviar_reporte_con_pdf(
@@ -236,28 +246,30 @@ def exportar_pdf_endpoint(
                 resumen=resumen_email
             )
             
-            return {
-                "exito": True,
-                "archivo_generado": pdf_path,
-                "nombre_archivo": nombre_archivo,
-                "total_productos": len(predicciones),
-                "email_enviado": resultado_email.get('exito', False),
-                "destinatario": destinatario,
-                "mensaje": f" PDF generado y enviado a {destinatario}"
+            # Devolver PDF + confirmación de email
+            return StreamingResponse(
+                io.BytesIO(pdf_bytes),
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f"attachment; filename={nombre_archivo}",
+                    "X-Email-Sent": "true" if resultado_email.get('exito') else "false",
+                    "X-Email-Destinatario": destinatario
+                }
+            )
+        
+        # Solo devolver PDF para descarga
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={nombre_archivo}"
             }
-        else:
-            return {
-                "exito": True,
-                "archivo_generado": pdf_path,
-                "nombre_archivo": Path(pdf_path).name,
-                "total_productos": len(predicciones),
-                "url_descarga": f"/descargar-pdf/{Path(pdf_path).name}",
-                "mensaje": " PDF generado exitosamente"
-            }
+        )
     
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
-
 
 @app.get("/descargar-pdf/{filename}")
 def descargar_pdf(filename: str):

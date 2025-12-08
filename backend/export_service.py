@@ -250,6 +250,211 @@ class ExportService:
         
         return str(filepath)
     
+    def generar_pdf_en_memoria(
+        self,
+        fecha: str,
+        predicciones: List[Dict],
+        mensaje_llm: str = None,
+        tipo_reporte: str = "completo"
+    ) -> bytes:
+        """
+        Genera PDF en memoria (sin guardar en disco) y devuelve bytes
+        
+        Returns:
+            bytes: Contenido del PDF en bytes
+        """
+        from io import BytesIO
+        
+        # Crear buffer en memoria
+        buffer = BytesIO()
+        
+        # Crear documento PDF en el buffer
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=50
+        )
+        
+        # Contenedor de elementos (misma lógica que generar_pdf_reporte)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # ===== ENCABEZADO =====
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#1e3a8a'),
+            spaceAfter=20,
+            alignment=TA_CENTER
+        )
+        
+        story.append(Paragraph("📊 REPORTE DE PREDICCIÓN DE STOCK", title_style))
+        
+        subtitle_style = ParagraphStyle(
+            'Subtitle',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#4b5563'),
+            alignment=TA_CENTER,
+            spaceAfter=30
+        )
+        
+        story.append(Paragraph(f"UPS Tuti - Distribución de Snacks Saludables", subtitle_style))
+        story.append(Paragraph(f"Fecha de Análisis: {fecha}", subtitle_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # ===== MENSAJE LLM =====
+        if mensaje_llm:
+            llm_style = ParagraphStyle(
+                'LLMStyle',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=colors.HexColor('#1f2937'),
+                spaceAfter=20,
+                leading=14,
+                leftIndent=20,
+                rightIndent=20
+            )
+            
+            story.append(Paragraph("<b>📋 Resumen Ejecutivo:</b>", styles['Heading2']))
+            story.append(Spacer(1, 0.1*inch))
+            
+            # Procesar mensaje LLM línea por línea
+            for linea in mensaje_llm.split('\n'):
+                if linea.strip():
+                    story.append(Paragraph(linea.strip(), llm_style))
+        
+        story.append(Spacer(1, 0.3*inch))
+    
+        # ===== ESTADÍSTICAS RÁPIDAS =====
+        criticos = [p for p in predicciones if p.get('stock_predicho', p.get('prediccion', 0)) < p.get('minimum_stock', 20)]
+        alertas = [p for p in predicciones if p.get('minimum_stock', 20) <= p.get('stock_predicho', p.get('prediccion', 0)) < p.get('minimum_stock', 20) * 1.5]
+        ok = len(predicciones) - len(criticos) - len(alertas)
+        
+        stats_data = [
+            ['Estado', 'Cantidad', 'Porcentaje'],
+            ['🔴 CRÍTICO', str(len(criticos)), f"{(len(criticos)/len(predicciones)*100):.1f}%"],
+            ['🟡 ALERTA', str(len(alertas)), f"{(len(alertas)/len(predicciones)*100):.1f}%"],
+            ['🟢 OK', str(ok), f"{(ok/len(predicciones)*100):.1f}%"],
+        ]
+        
+        stats_table = Table(stats_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ]))
+        
+        story.append(Paragraph("<b>📊 Resumen General:</b>", styles['Heading2']))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(stats_table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # ===== TABLA DE PREDICCIONES =====
+        story.append(Paragraph("<b>📦 Detalle de Predicciones:</b>", styles['Heading2']))
+        story.append(Spacer(1, 0.1*inch))
+        
+        # Preparar datos
+        table_data = [['#', 'Producto', 'SKU', 'Stock Predicho', 'Stock Mínimo', 'Estado']]
+        
+        for idx, pred in enumerate(predicciones, 1):
+            stock_pred = pred.get('stock_predicho', pred.get('prediccion', 0))
+            min_stock = pred.get('minimum_stock', 20)
+            
+            if stock_pred < min_stock:
+                estado = '🔴 CRÍTICO'
+                color_fondo = colors.HexColor('#fee2e2')
+            elif stock_pred < min_stock * 1.5:
+                estado = '🟡 ALERTA'
+                color_fondo = colors.HexColor('#fef3c7')
+            else:
+                estado = '🟢 OK'
+                color_fondo = colors.HexColor('#d1fae5')
+            
+            nombre = pred.get('nombre', 'Desconocido')[:30]
+            
+            table_data.append([
+                str(idx),
+                nombre,
+                pred.get('sku', 'N/A'),
+                f"{stock_pred:.1f}",
+                f"{min_stock:.1f}",
+                estado
+            ])
+        
+        # Crear tabla
+        col_widths = [0.4*inch, 2.2*inch, 1*inch, 1.2*inch, 1.2*inch, 1*inch]
+        predictions_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        
+        # Estilos base
+        table_style = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]
+        
+        # Colorear filas según estado
+        for idx, pred in enumerate(predicciones, 1):
+            stock_pred = pred.get('stock_predicho', pred.get('prediccion', 0))
+            min_stock = pred.get('minimum_stock', 20)
+            
+            if stock_pred < min_stock:
+                bg_color = colors.HexColor('#fee2e2')
+            elif stock_pred < min_stock * 1.5:
+                bg_color = colors.HexColor('#fef3c7')
+            else:
+                bg_color = colors.HexColor('#d1fae5')
+            
+            table_style.append(('BACKGROUND', (0, idx), (-1, idx), bg_color))
+        
+        predictions_table.setStyle(TableStyle(table_style))
+        story.append(predictions_table)
+        
+        # ===== PIE DE PÁGINA =====
+        story.append(Spacer(1, 0.5*inch))
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        story.append(Paragraph(
+            f"Generado automáticamente por UPS Tuti Stock Predictor | {timestamp}",
+            footer_style
+        ))
+        
+        # Construir PDF en el buffer
+        doc.build(story)
+        
+        # Obtener bytes del buffer
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_bytes
+    
     def _markdown_to_html(self, texto: str) -> str:
         """Convierte markdown básico a HTML para reportlab"""
         # Reemplazar ** por <b>
@@ -330,3 +535,16 @@ if __name__ == "__main__":
     )
     print(f"PDF generado exitosamente: {pdf_path}")
     print(f"\nAbre el archivo para verificar: {pdf_path}")
+    
+    print("\n Generando PDF en memoria (prueba)...")
+    pdf_bytes = service.generar_pdf_en_memoria(
+        fecha="2025-12-08",
+        predicciones=predicciones_prueba,
+        mensaje_llm=mensaje_llm,
+        tipo_reporte="completo"
+    )
+    
+    # Guardar PDF en disco para verificar (opcional)
+    with open("reporte_prueba_memoria.pdf", "wb") as f:
+        f.write(pdf_bytes)
+        print("PDF en memoria guardado como 'reporte_prueba_memoria.pdf'")
