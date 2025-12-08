@@ -389,4 +389,12 @@ class EmailService:
         return tabla
 
 
-# PRUEBA (CON DATOS DE EJEMPLO)
+# Singleton para EmailService
+_email_service = None
+
+def get_email_service() -> EmailService:
+    """Retorna la instancia singleton de EmailService"""
+    global _email_service
+    if _email_service is None:
+        _email_service = EmailService()
+    return _email_service

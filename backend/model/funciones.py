@@ -2,6 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from pathlib import Path
 import numpy as np
 
 from model.registro_advanced import (
@@ -452,84 +453,133 @@ def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         )
 
 def exportar_pdf(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """
-    Genera reporte PDF de predicciones y opcionalmente lo envía por email
-    
-    Args:
-        data: dict opcional con:
-            - 'fecha': fecha de predicción (default: hoy)
-            - 'enviar_email': bool para enviar por email (default: False)
-            - 'destinatario': email destino (default: None)
-    
-    Returns:
-        dict con respuesta estandarizada de la API
-    """
+    """Genera reporte PDF de predicciones y opcionalmente lo envía por email"""
     try:
-        import requests
-        from pathlib import Path
+        from export_service import get_export_service
+        from email_service import get_email_service
         
         # Parámetros
         fecha = data.get('fecha') if data else datetime.now().strftime('%Y-%m-%d')
         enviar_email = data.get('enviar_email', False) if data else False
         destinatario = data.get('destinatario') if data else None
         
-        # Si no hay destinatario pero se quiere enviar email, usar default
         if enviar_email and not destinatario:
             destinatario = 'venotacu@gmail.com'
         
-        # Llamar al endpoint de exportación
-        url = "http://localhost:8000/exportar-pdf"
-        params = {
-            "fecha": fecha,
-            "enviar_email": enviar_email
-        }
+        # OBTENER PREDICCIONES DIRECTAMENTE (no usar predecir_all_stock)
+        productos = all_registers_priductos()
+        predicciones = []
         
-        if destinatario:
-            params["destinatario"] = destinatario
-        
-        response = requests.post(url, params=params, timeout=30)
-        
-        if response.status_code == 200:
-            resultado = response.json()
+        for prod in productos:
+            features = preparar_input_desde_dataset_procesado(sku=prod, fecha_override=fecha)
             
-            if resultado.get('email_enviado'):
-                return APIResponse.success(
-                    message=f" Reporte PDF generado para {fecha} y enviado a {destinatario}\n\n"
-                           f" Total de productos: {resultado.get('total_productos', 0)}\n"
-                           f" Archivo: {resultado.get('nombre_archivo', 'reporte.pdf')}\n\n"
-                           f"El destinatario recibirá el PDF por email en unos momentos.",
-                    title=" PDF generado y enviado",
-                    data={
-                        "archivo": resultado.get('archivo_generado'),
-                        "productos": resultado.get('total_productos'),
-                        "destinatario": destinatario,
-                        "fecha": fecha
-                    }
-                )
-            else:
-                # URL de descarga
-                url_descarga = f"http://localhost:8000{resultado.get('url_descarga', '')}"
+            if features is not None and np.any(features):
+                pred = modelo.predecir(features)
+                nombre = buscar_nombre_por_sku(prod)
+                minimum_stock = obtener_minimum_stock_level(prod) or 20.0
                 
-                return APIResponse.success(
-                    message=f" Reporte PDF generado exitosamente para {fecha}\n\n"
-                           f" Total de productos: {resultado.get('total_productos', 0)}\n"
-                           f" Archivo: {resultado.get('nombre_archivo', 'reporte.pdf')}\n\n"
-                           f" Descárgalo aquí: {url_descarga}",
-                    title=" PDF generado",
-                    data={
-                        "url_descarga": url_descarga,
-                        "archivo": resultado.get('archivo_generado'),
-                        "productos": resultado.get('total_productos'),
-                        "fecha": fecha
-                    }
-                )
-        else:
+                # Determinar estado
+                if pred < minimum_stock:
+                    estado = "CRÍTICO"
+                elif pred < minimum_stock * 1.5:
+                    estado = "ALERTA"
+                else:
+                    estado = "OK"
+                
+                predicciones.append({
+                    "sku": prod,
+                    "nombre": nombre,
+                    "stock_predicho": float(pred),
+                    "minimum_stock": minimum_stock,
+                    "estado": estado
+                })
+        
+        if not predicciones:
             return APIResponse.error(
-                message="No se pudo generar el reporte PDF.",
-                error_detail=response.text,
-                title=" Error al generar PDF"
+                message="No hay productos con datos suficientes para generar el PDF.",
+                title=" Sin datos"
             )
-    
+        
+        # Generar mensaje con LLM
+        try:
+            llm_service = get_llm_service()
+            
+            # Preparar datos para el LLM
+            criticos = [p for p in predicciones if p['estado'] == 'CRÍTICO']
+            alertas = [p for p in predicciones if p['estado'] == 'ALERTA']
+            
+            mensaje_llm = f"""
+Resumen Ejecutivo - Predicción de Stock para {fecha}
+
+TOTAL PRODUCTOS ANALIZADOS: {len(predicciones)}
+- Productos en estado CRÍTICO: {len(criticos)}
+- Productos en ALERTA: {len(alertas)}
+- Productos en estado OK: {len(predicciones) - len(criticos) - len(alertas)}
+
+PRODUCTOS PRIORITARIOS:
+{chr(10).join([f"• {p['nombre']}: {p['stock_predicho']:.1f} unidades ({p['estado']})" for p in criticos[:5]])}
+
+RECOMENDACIONES:
+- Reabastecer inmediatamente los productos en estado CRÍTICO
+- Monitorear productos en ALERTA para el próximo pedido
+- Mantener niveles actuales para productos OK
+            """
+            
+        except Exception as e:
+            print(f"Error al generar mensaje LLM: {e}")
+            mensaje_llm = f"Análisis de {len(predicciones)} productos para la fecha {fecha}"
+        
+        # Generar PDF
+        export_service = get_export_service()
+        pdf_path = export_service.generar_pdf_reporte(
+            fecha=fecha,
+            predicciones=predicciones,
+            mensaje_llm=mensaje_llm,
+            tipo_reporte="stock_predictions"
+        )
+        
+        nombre_archivo = Path(pdf_path).name
+        url_descarga = f"/descargar-pdf/{nombre_archivo}"
+        
+        # Enviar por email si se solicitó
+        email_enviado = False
+        if enviar_email and destinatario:
+            try:
+                email_service = get_email_service()
+                pdf_bytes = export_service.leer_pdf_como_bytes(pdf_path)
+                
+                resultado_email = email_service.enviar_reporte_con_pdf(
+                    destinatario=destinatario,
+                    fecha=fecha,
+                    pdf_bytes=pdf_bytes,
+                    nombre_archivo=nombre_archivo,
+                    resumen=f"{len(predicciones)} productos analizados"
+                )
+                
+                email_enviado = resultado_email.get('exito', False)
+            except Exception as e:
+                print(f"Error al enviar email: {e}")
+        
+        # Construir respuesta
+        if email_enviado:
+            mensaje = f" PDF generado y enviado a {destinatario}. Descárgalo: {url_descarga}"
+            title = " PDF enviado"
+        else:
+            mensaje = f" PDF generado. Descárgalo: {url_descarga}"
+            title = " PDF generado"
+        
+        return APIResponse.success(
+            message=mensaje,
+            title=title,
+            data={
+                "archivo_generado": nombre_archivo,
+                "url_descarga": url_descarga,
+                "total_productos": len(predicciones),
+                "email_enviado": email_enviado,
+                "destinatario": destinatario if email_enviado else None
+            }
+        )
+        
     except Exception as e:
         print(f"Error en exportar_pdf: {e}")
         import traceback
@@ -539,7 +589,6 @@ def exportar_pdf(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             error_detail=str(e),
             title=" Error en exportación"
         )
-
 
 # Mapeo de acciones disponibles
 ACTIONS_MAP = {
