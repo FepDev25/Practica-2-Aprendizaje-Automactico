@@ -273,9 +273,11 @@ def descargar_pdf(filename: str):
     return FileResponse(
         path=str(filepath),
         filename=filename,
-        media_type='application/pdf'
+        media_type='application/pdf',
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
     )
-
 
 @app.post("/chat")
 def chat_endpoint(request: ChatInput):
