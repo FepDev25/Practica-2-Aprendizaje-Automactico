@@ -656,6 +656,13 @@ def crear_router_integrado(rag_service) -> UnifiedSemanticRouter:
                 "despedir adios hasta luego gracias por usar servicio "
                 "cerrar conversacion chao nos vemos"
             )
+        },
+        {
+            "id": "exportar_pdf",
+            "docstring": (
+                "exportar generar pdf reporte descargar documento archivo "
+                "crear exporta genera descarga guarda"
+            )
         }
     ]
     

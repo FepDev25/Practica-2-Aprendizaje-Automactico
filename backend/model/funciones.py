@@ -426,7 +426,7 @@ def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             
             return APIResponse.success(
                 message=mensaje_confirmacion,
-                title="📧 Correo enviado",
+                title=" Correo enviado",
                 data={
                     "destinatario": destinatario,
                     "tipo_reporte": asunto_tipo,
@@ -438,7 +438,7 @@ def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             return APIResponse.error(
                 message=f"No se pudo enviar el correo a {destinatario}.",
                 error_detail=resultado_envio.get('error', 'Error desconocido'),
-                title="❌ Error al enviar correo"
+                title=" Error al enviar correo"
             )
         
     except Exception as e:
@@ -448,7 +448,96 @@ def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         return APIResponse.error(
             message="No se pudo completar el envío del correo electrónico.",
             error_detail=str(e),
-            title="❌ Error al procesar envío"
+            title=" Error al procesar envío"
+        )
+
+def exportar_pdf(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Genera reporte PDF de predicciones y opcionalmente lo envía por email
+    
+    Args:
+        data: dict opcional con:
+            - 'fecha': fecha de predicción (default: hoy)
+            - 'enviar_email': bool para enviar por email (default: False)
+            - 'destinatario': email destino (default: None)
+    
+    Returns:
+        dict con respuesta estandarizada de la API
+    """
+    try:
+        import requests
+        from pathlib import Path
+        
+        # Parámetros
+        fecha = data.get('fecha') if data else datetime.now().strftime('%Y-%m-%d')
+        enviar_email = data.get('enviar_email', False) if data else False
+        destinatario = data.get('destinatario') if data else None
+        
+        # Si no hay destinatario pero se quiere enviar email, usar default
+        if enviar_email and not destinatario:
+            destinatario = 'venotacu@gmail.com'
+        
+        # Llamar al endpoint de exportación
+        url = "http://localhost:8000/exportar-pdf"
+        params = {
+            "fecha": fecha,
+            "enviar_email": enviar_email
+        }
+        
+        if destinatario:
+            params["destinatario"] = destinatario
+        
+        response = requests.post(url, params=params, timeout=30)
+        
+        if response.status_code == 200:
+            resultado = response.json()
+            
+            if resultado.get('email_enviado'):
+                return APIResponse.success(
+                    message=f" Reporte PDF generado para {fecha} y enviado a {destinatario}\n\n"
+                           f" Total de productos: {resultado.get('total_productos', 0)}\n"
+                           f" Archivo: {resultado.get('nombre_archivo', 'reporte.pdf')}\n\n"
+                           f"El destinatario recibirá el PDF por email en unos momentos.",
+                    title=" PDF generado y enviado",
+                    data={
+                        "archivo": resultado.get('archivo_generado'),
+                        "productos": resultado.get('total_productos'),
+                        "destinatario": destinatario,
+                        "fecha": fecha
+                    }
+                )
+            else:
+                # URL de descarga
+                url_descarga = f"http://localhost:8000{resultado.get('url_descarga', '')}"
+                
+                return APIResponse.success(
+                    message=f" Reporte PDF generado exitosamente para {fecha}\n\n"
+                           f" Total de productos: {resultado.get('total_productos', 0)}\n"
+                           f" Archivo: {resultado.get('nombre_archivo', 'reporte.pdf')}\n\n"
+                           f" Descárgalo aquí: {url_descarga}",
+                    title=" PDF generado",
+                    data={
+                        "url_descarga": url_descarga,
+                        "archivo": resultado.get('archivo_generado'),
+                        "productos": resultado.get('total_productos'),
+                        "fecha": fecha
+                    }
+                )
+        else:
+            return APIResponse.error(
+                message="No se pudo generar el reporte PDF.",
+                error_detail=response.text,
+                title=" Error al generar PDF"
+            )
+    
+    except Exception as e:
+        print(f"Error en exportar_pdf: {e}")
+        import traceback
+        traceback.print_exc()
+        return APIResponse.error(
+            message="No se pudo completar la exportación a PDF.",
+            error_detail=str(e),
+            title=" Error en exportación"
         )
 
 
@@ -456,5 +545,6 @@ def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
 ACTIONS_MAP = {
     "predecir_all_stock": predecir_all_stock,
     "productos_criticos": productos_criticos,
-    "enviar_correo": enviar_correo
+    "enviar_correo": enviar_correo,
+    "exportar_pdf": exportar_pdf
 }

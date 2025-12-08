@@ -12,6 +12,9 @@ from paths import resolve_file
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from export_service import get_export_service
+from pathlib import Path
+
 from model.database import SessionLocal
 from model.registro import Registro
 from dias_stock_service import DiasStockService
@@ -71,6 +74,149 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# EXPORTACIÓN A PDF
+
+@app.post("/exportar-pdf")
+def exportar_pdf_endpoint(
+    fecha: str,
+    enviar_email: bool = False,
+    destinatario: str = None
+):
+    """
+    Genera PDF de predicciones y opcionalmente lo envía por email
+    
+    Llamado desde:
+    - Chat (comando "exporta a PDF")
+    - Botón en frontend
+    """
+    if modelo is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible")
+    
+    try:
+        # Obtener predicciones (reutilizar lógica de /predictAll)
+        productos = all_registers_priductos()
+        predicciones = []
+        
+        for prod in productos:
+            features = preparar_input_desde_dataset_procesado(sku=prod, fecha_override=fecha)
+            if features is not None and np.any(features):
+                pred = modelo.predecir(features)
+                nombre = buscar_nombre_por_sku(prod)
+                minimum_stock = obtener_minimum_stock_level(prod) or 20.0
+                
+                predicciones.append({
+                    "sku": prod,
+                    "nombre": nombre,
+                    "prediccion": float(pred),
+                    "minimum_stock": minimum_stock
+                })
+        
+        if not predicciones:
+            raise HTTPException(status_code=404, detail="No se encontraron predicciones")
+        
+        # Generar mensaje LLM (reutilizar lógica de /predictAll)
+        mensaje_llm = None
+        if llm_service:
+            try:
+                resultados_ordenados = sorted(predicciones, key=lambda x: x['prediccion'])
+                stock_critico = [r for r in predicciones if r['prediccion'] < r['minimum_stock']]
+                stock_adecuado = [r for r in predicciones if r['prediccion'] >= r['minimum_stock'] * 1.5]
+                
+                predicciones_valores = [r['prediccion'] for r in predicciones]
+                min_pred = min(predicciones_valores)
+                max_pred = max(predicciones_valores)
+                producto_min = next(r for r in predicciones if r['prediccion'] == min_pred)
+                producto_max = next(r for r in predicciones if r['prediccion'] == max_pred)
+                
+                estadisticas = {
+                    'promedio': sum(predicciones_valores) / len(predicciones_valores),
+                    'minimo': min_pred,
+                    'maximo': max_pred,
+                    'producto_minimo': producto_min['nombre'],
+                    'producto_maximo': producto_max['nombre']
+                }
+                
+                mensaje_llm = llm_service.generar_mensaje_multiple(
+                    fecha=fecha,
+                    total_productos=len(predicciones),
+                    predicciones_destacadas=resultados_ordenados,
+                    stock_critico=stock_critico,
+                    stock_adecuado=stock_adecuado,
+                    estadisticas=estadisticas
+                )
+            except Exception as llm_error:
+                print(f"Error generando mensaje LLM: {llm_error}")
+        
+        # Generar PDF
+        export_service = get_export_service()
+        pdf_path = export_service.generar_pdf_reporte(
+            fecha=fecha,
+            predicciones=predicciones,
+            mensaje_llm=mensaje_llm,
+            tipo_reporte="completo"
+        )
+        
+        # Enviar por email si se solicita
+        if enviar_email and destinatario:
+            from email_service import EmailService
+            email_service = EmailService()
+            
+            pdf_bytes = export_service.leer_pdf_como_bytes(pdf_path)
+            nombre_archivo = Path(pdf_path).name
+            
+            # Resumen corto para email
+            criticos = len([p for p in predicciones if p['prediccion'] < p['minimum_stock']])
+            resumen_email = f"{len(predicciones)} productos analizados. {criticos} en estado crítico."
+            
+            resultado_email = email_service.enviar_reporte_con_pdf(
+                destinatario=destinatario,
+                fecha=fecha,
+                pdf_bytes=pdf_bytes,
+                nombre_archivo=nombre_archivo,
+                resumen=resumen_email
+            )
+            
+            return {
+                "exito": True,
+                "archivo_generado": pdf_path,
+                "nombre_archivo": nombre_archivo,
+                "total_productos": len(predicciones),
+                "email_enviado": resultado_email.get('exito', False),
+                "destinatario": destinatario,
+                "mensaje": f" PDF generado y enviado a {destinatario}"
+            }
+        else:
+            return {
+                "exito": True,
+                "archivo_generado": pdf_path,
+                "nombre_archivo": Path(pdf_path).name,
+                "total_productos": len(predicciones),
+                "url_descarga": f"/descargar-pdf/{Path(pdf_path).name}",
+                "mensaje": " PDF generado exitosamente"
+            }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
+
+
+@app.get("/descargar-pdf/{filename}")
+def descargar_pdf(filename: str):
+    """Endpoint para descargar el PDF generado"""
+    from fastapi.responses import FileResponse
+    
+    export_service = get_export_service()
+    filepath = export_service.reportes_dir / filename
+    
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    
+    return FileResponse(
+        path=str(filepath),
+        filename=filename,
+        media_type='application/pdf'
+    )
+
 
 @app.post("/chat")
 def chat_endpoint(request: ChatInput):
