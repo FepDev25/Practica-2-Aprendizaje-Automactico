@@ -45,7 +45,7 @@ class RAGKnowledgeService:
             model=LLM_MODEL,
             project=PROJECT_ID,
             temperature=0.3, 
-            max_tokens=400,
+            max_tokens=150,  # Respuestas más cortas y directas
         )
     
     def _crear_embeddings(self):
@@ -242,11 +242,10 @@ Responde la pregunta del usuario usando ÚNICAMENTE la información de las sigui
 Pregunta del usuario: {pregunta}
 
 INSTRUCCIONES:
-1. Si la información está en las FAQs, responde de manera clara y amigable
-2. Cita la información relevante de las FAQs
-3. Si la pregunta NO está relacionada con las FAQs proporcionadas, di que no tienes esa información específica y sugiere contactar al equipo
-4. Mantén un tono profesional pero cercano
-5. Sé conciso (máximo 4-5 oraciones)
+1. Responde SOLO con información de las FAQs
+2. Sé directo y conciso (máximo 2-3 oraciones)
+3. Si no está en las FAQs, di "No tengo esa información, contacta a soporte"
+4. Sin introducciones largas, directo al punto
 
 Respuesta:
             """
@@ -309,11 +308,10 @@ Usa la siguiente información de la empresa para responder la consulta del usuar
 Consulta del usuario: {consulta}
 
 INSTRUCCIONES:
-1. Responde usando ÚNICAMENTE la información proporcionada
-2. Sé preciso y específico
-3. Si la información no está en el contexto, dilo claramente
-4. Mantén un tono profesional y amigable
-5. Incluye detalles relevantes (fechas, números, nombres) cuando estén disponibles
+1. Responde SOLO con la info proporcionada
+2. Máximo 2-3 oraciones, directo al grano
+3. Incluye solo datos clave (fechas, números)
+4. Sin texto de relleno
 
 Respuesta:
             """
@@ -412,19 +410,13 @@ Respuesta:
     MOMENTO DEL DÍA: {momento_dia} (usar emoji: {emoji_momento})
     
     INSTRUCCIONES:
-    1. Responde el saludo de manera cálida y profesional adaptada al momento del día
-    2. Preséntate brevemente como el asistente de {nombre_empresa}
-    3. Menciona de forma natural 2-3 cosas que puedes hacer:
-       - Consultar información sobre productos y servicios
-       - Analizar el estado del inventario y hacer predicciones de stock
-       - Proporcionar información de contacto, horarios y políticas
-       - Responder preguntas frecuentes
-    4. Incluye el emoji apropiado del momento del día al inicio
-    5. Máximo 4 oraciones
-    6. Tono: Profesional, cercano y entusiasta
+    1. Saludo breve con emoji {emoji_momento}
+    2. Presenta {nombre_empresa} en 1 oración
+    3. MÁXIMO 2 oraciones total
+    4. Directo, sin listas de funciones
     
-    EJEMPLO DE ESTRUCTURA:
-    "{emoji_momento} ¡[Saludo apropiado]! Soy [nombre], el asistente virtual de {nombre_empresa}. Puedo ayudarte a [acción 1], [acción 2] y [acción 3]. ¿En qué te puedo ayudar hoy?"
+    EJEMPLO:
+    "{emoji_momento} Hola, soy el asistente de {nombre_empresa}. ¿En qué puedo ayudarte?"
     
     Respuesta:
                 """
@@ -459,16 +451,12 @@ Respuesta:
     - Horario de atención: {horario_atencion}
     
     INSTRUCCIONES:
-    1. Responde la despedida de manera cordial y profesional
-    2. Agradece genuinamente por usar el servicio
-    3. Menciona disponibilidad futura de forma breve
-    4. Ofrece UN medio de contacto alternativo (email O WhatsApp, no ambos)
-    5. Incluye emoji de despedida (👋, 😊, o ✨)
-    6. Máximo 3 oraciones
-    7. Tono: Cálido, profesional y positivo
+    1. Despedida con emoji 👋 + gracias breve
+    2. MÁXIMO 2 oraciones
+    3. Sin listas de contactos
     
-    EJEMPLO DE ESTRUCTURA:
-    "👋 [Despedida apropiada]. Gracias por contactar a {nombre_empresa}. Si necesitas más ayuda, estamos disponibles en [contacto] durante nuestro horario de atención."
+    EJEMPLO:
+    "👋 Hasta pronto, gracias por contactar a {nombre_empresa}. Estamos para ayudarte cuando lo necesites."
     
     Respuesta:
                 """

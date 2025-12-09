@@ -56,16 +56,16 @@ class LLMPrediccionService:
             model=LLM_MODEL,
             project=PROJECT_ID,
             temperature=0.7,  
-            max_tokens=300, 
+            max_tokens=120,  # Respuestas breves
         )
     
     def _crear_llm_conclusion(self):
-        """LLM específico para generar conclusiones más largas"""
+        """LLM específico para generar conclusiones"""
         return ChatVertexAI(
             model=LLM_MODEL,
             project=PROJECT_ID,
-            temperature=0.8,  # Más creativo para conclusiones
-            max_tokens=500,   # Más tokens para conclusión detallada
+            temperature=0.8,
+            max_tokens=180,  # Conclusiones breves
         )
     
     def _crear_chain(self):
@@ -83,13 +83,12 @@ INFORMACIÓN DE LA PREDICCIÓN:
 {contexto_adicional}
 
 INSTRUCCIONES:
-1. Genera un mensaje amigable y profesional (máximo 3-4 oraciones)
-2. Interpreta la predicción comparando con el nivel mínimo de stock:
-   - Si el stock predicho está por debajo del nivel mínimo: advierte sobre stock crítico
-   - Si está cerca del nivel mínimo (entre mínimo y 1.5x mínimo): indica precaución
-   - Si está por encima de 1.5x el nivel mínimo: indica nivel adecuado o abundante
-3. Da una recomendación breve y accionable basada en esta comparación
-4. Usa un tono profesional pero cercano
+1. MÁXIMO 2 oraciones
+2. Compara stock predicho vs mínimo:
+   - Bajo: "Stock crítico, reabastecer ya"
+   - Medio: "Stock justo, monitorear"
+   - Alto: "Stock adecuado"
+3. Sin explicaciones largas
 
 Respuesta:
         """
@@ -251,53 +250,22 @@ Genera SOLO la lista de recomendaciones (sin títulos adicionales):
                     return 'ADVERTENCIA', 'Monitorear ventas y considerar reposición.'
                 return 'ADECUADO', 'Sin acción inmediata requerida.'
 
-            # Construir informe estructurado
+            # Informe CONCISO
             lines = []
-            lines.append(f"**Análisis Ejecutivo de Inventario - Fecha: {fecha}**")
-            lines.append("")
-            lines.append(f"Resumen: Este informe analiza {total_productos} productos y entrega prioridades de acción por producto, seguido de conclusiones operativas.")
+            lines.append(f"**Análisis de Inventario - {fecha}**")
             lines.append("")
             
-            # Estadísticas generales
-            lines.append("**Estadísticas Generales**")
-            lines.append(f"- Stock promedio predicho: {promedio:,.2f} unidades")
-            lines.append(f"- Stock mínimo: {minimo:,.2f} unidades (Producto: {producto_minimo})")
-            lines.append(f"- Stock máximo: {maximo:,.2f} unidades (Producto: {producto_maximo})")
-            lines.append(f"- Productos en riesgo (CRÍTICO): {len(stock_critico)}")
-            lines.append(f"- Productos con stock adecuado: {len(stock_adecuado)}")
+            # Stats breves
+            lines.append(f"📊 {total_productos} productos | {len(stock_critico)} críticos | Promedio: {promedio:,.0f} unidades")
             lines.append("")
 
-            # Detalle por producto
-            lines.append("**Detalle por Producto (priorizado)**")
-            detalle_lista = predicciones_destacadas or []
-            if not detalle_lista:
-                lines.append("No hay productos detallados disponibles.")
-            else:
-                for p in detalle_lista[:50]:  # Limitar a 50 productos
-                    nombre = p.get('nombre', 'Sin nombre')
-                    sku = p.get('sku', 'N/A')
-                    pred = p.get('prediccion', 0.0)
-                    estado, recomendacion = estado_producto(pred, minimo if minimo > 0 else 1.0)
-                    lines.append(f"- {nombre} (SKU: {sku}) — Predicción: {float(pred):,.2f} unidades — Estado: {estado}")
-                    lines.append(f"  Recomendación: {recomendacion}")
-
-            lines.append("")
-            # Productos críticos
-            lines.append("**Productos Críticos (revisión inmediata)**")
+            # Solo top 5 críticos
             if stock_critico:
-                for p in stock_critico[:20]:
-                    lines.append(f"- {p.get('nombre','Sin nombre')} (SKU: {p.get('sku','N/A')}) — {float(p.get('prediccion',0.0)):,.2f} unidades")
+                lines.append("🔴 **Críticos (top 5):**")
+                for p in stock_critico[:5]:
+                    lines.append(f"- {p.get('nombre','N/A')}: {float(p.get('prediccion',0.0)):,.0f} unidades")
             else:
-                lines.append("- Ninguno")
-
-            lines.append("")
-            # Productos con buen stock
-            lines.append("**Productos con Buen Nivel de Stock**")
-            if stock_adecuado:
-                for p in stock_adecuado[:20]:
-                    lines.append(f"- {p.get('nombre','Sin nombre')} (SKU: {p.get('sku','N/A')}) — {float(p.get('prediccion',0.0)):,.2f} unidades")
-            else:
-                lines.append("- Ninguno")
+                lines.append("✅ Sin productos críticos")
 
             lines.append("")
             # Conclusiones y recomendaciones generadas por LLM
