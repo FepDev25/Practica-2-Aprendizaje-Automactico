@@ -335,7 +335,7 @@ def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     try:
         # Parámetros
         tipo_reporte = data.get('tipo', 'criticos') if data else 'criticos'
-        destinatario = data.get('destinatario', 'venotacu@gmail.com') if data else 'venotacu@gmail.com'
+        destinatario = (data or {}).get('destinatario', 'venotacu@gmail.com')
         incluir_analisis = data.get('incluir_analisis', True) if data else True
         
         # Obtener análisis de productos críticos

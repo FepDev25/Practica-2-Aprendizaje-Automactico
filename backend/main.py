@@ -26,7 +26,32 @@ from llm_service import get_llm_service
 from rag_service import get_rag_service, crear_router_integrado
 from dias_stock_service import DiasStockService
 from export_service import get_export_service
+import re
+
 app = FastAPI()
+
+
+# Detectar correo
+import re
+
+def contiene_correo(texto):
+    patron = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+    match = re.search(patron, texto)
+    return match.group(0) if match else None
+
+
+def contiene_fecha(texto):
+    patron = r"\b(\d{2}[/-]\d{2}[/-]\d{4}|\d{4}[/-]\d{2}[/-]\d{2})\b"
+    match = re.search(patron, texto)
+    return match.group(0) if match else None
+
+
+def contiene_codigo(texto):
+    patron = r"\b[A-Za-z]{3}-\d{3}\b"
+    match = re.search(patron, texto)
+    return match.group(0) if match else None
+
+
 
 # Variables globales para servicios
 dias_stock_service = None
@@ -332,6 +357,9 @@ def chat_endpoint(request: ChatInput):
     
     decision = router_instance.buscar_intencion(request.mensaje)
 
+    codigo = contiene_codigo(request.mensaje)
+    correo = contiene_correo(request.mensaje)
+    fecha = contiene_fecha(request.mensaje)
     # Caso 1: Conversaciones naturales (saludo/despedida) -> Usar RAG
     if decision["tipo"] == "conversacional":
         subtipo = decision["subtipo"]
@@ -356,7 +384,7 @@ def chat_endpoint(request: ChatInput):
         accion_id = decision["funcion"]
 
         if accion_id in ACTIONS_MAP:
-            resultado = ACTIONS_MAP[accion_id]()
+            resultado = ACTIONS_MAP[accion_id](data={"destinatario":correo,"codigo":codigo,"fecha":fecha})
             return {
                 "tipo": "accion",
                 "accion": accion_id,
