@@ -30,7 +30,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
   }
 
   chat(msg: string) {
-    if (!msg.trim()) return; 
+    if (!msg.trim()) return;
 
     this.messages.push({
       from: 'user',
@@ -44,22 +44,31 @@ export class ChatComponent implements OnInit, AfterViewChecked {
       (response: any) => {
         console.log('Respuesta del servidor:', response);
 
-        // El backend devuelve { respuesta: string, metodo: string, tipo: string, ... }
-        let textoBot = response?.respuesta || 'No recibí una respuesta válida.';
+        let textoBot = 'No recibí una respuesta válida.';
+
+        // Caso A: respuesta conversacional de tu IA
+        if (response?.resultado?.message) {
+          textoBot = response.resultado.message;
+        }
+
+        // Caso B: respuesta clásica {respuesta: "..."}
+        else if (response?.respuesta) {
+          textoBot = response.respuesta;
+        }
 
         this.messages.push({
           from: 'bot',
           text: textoBot,
-          metodo: response?.metodo,
-          tipo: response?.tipo,
-          confianza: response?.confianza,
-          fuentes: response?.fuentes,
+          metodo: response?.metodo || response?.metadata?.metodo,
+          tipo: response?.tipo || response?.metadata?.tipo,
+          confianza: response?.confianza || response?.metadata?.confianza,
           raw: response,
           time: new Date()
         });
 
         this.shouldScroll = true;
       },
+
 
       (error) => {
         console.error('Error al enviar el mensaje:', error);
