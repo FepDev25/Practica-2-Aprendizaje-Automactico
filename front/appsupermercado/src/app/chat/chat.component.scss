@@ -691,3 +691,23 @@ $shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
   }
 }
+
+
+.message-text h1,
+.message-text h2,
+.message-text h3 {
+  margin: 5px 0;
+  font-weight: 600;
+}
+
+.message-text ul {
+  margin-left: 15px;
+}
+
+.message-text li {
+  margin-bottom: 4px;
+}
+
+.message-text strong {
+  color: #333;
+}

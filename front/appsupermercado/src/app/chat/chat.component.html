@@ -136,7 +136,7 @@
         <!-- Burbuja del Mensaje -->
         <div class="message-bubble">
           <div class="message-text">
-            <p>{{ msg.text }}</p>
+            <markdown [data]="msg.text"></markdown>
           </div>
           <span class="message-time">{{ msg.time | date:'shortTime' }}</span>
         </div>

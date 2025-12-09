@@ -2,11 +2,12 @@ import { Component, OnInit, ViewChild, ElementRef, AfterViewChecked } from '@ang
 import { ChatService } from '../chat.service';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { MarkdownModule } from 'ngx-markdown';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule, MarkdownModule],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.scss']
 })
