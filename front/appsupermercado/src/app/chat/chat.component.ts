@@ -46,6 +46,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
         console.log('Respuesta del servidor:', response);
 
         let textoBot = 'No recibí una respuesta válida.';
+        let downloadUrl: string | null = null;
+        let downloadTitle: string | null = null;
 
         // Caso A: respuesta conversacional de tu IA
         if (response?.resultado?.message) {
@@ -57,9 +59,25 @@ export class ChatComponent implements OnInit, AfterViewChecked {
           textoBot = response.respuesta;
         }
 
+        // Detectar si hay URL de descarga
+        if (response?.resultado?.data?.url_descarga) {
+          downloadUrl = response.resultado.data.url_descarga;
+
+          // Extraer nombre corto del archivo
+          const nombreArchivo = response.resultado.data.archivo_generado || 'archivo.pdf';
+          // Extraer solo el tipo de reporte (ejemplo: "Reporte_Stock" de "Reporte_Stock_20251209_20251209_193654.pdf")
+          const partes = nombreArchivo.split('_');
+          downloadTitle = partes.length > 1 ? `${partes[0]} ${partes[1]}` : nombreArchivo;
+
+          // Limpiar el mensaje para no mostrar la URL duplicada
+          textoBot = textoBot.replace(/Descárgalo:.*$/i, '').trim();
+        }
+
         this.messages.push({
           from: 'bot',
           text: textoBot,
+          downloadUrl: downloadUrl,
+          downloadTitle: downloadTitle,
           metodo: response?.metodo || response?.metadata?.metodo,
           tipo: response?.tipo || response?.metadata?.tipo,
           confianza: response?.confianza || response?.metadata?.confianza,
@@ -98,5 +116,17 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
   clearChat(): void {
     this.messages = [];
+  }
+
+  getFullDownloadUrl(url: string): string {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    const baseUrl = 'http://34.10.46.216';
+
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+
+    return `${baseUrl}${cleanUrl}`;
   }
 }
