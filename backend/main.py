@@ -1,72 +1,112 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException,Depends ,Query
-from model.modeloKeras import ModeloStockKeras,reentrenar_modelo_con_diferencias
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from datetime import date
-from model.registro_advanced import preparar_input_desde_dataset_procesado,all_registers_priductos,procesar_dataset_inventario,buscar_producto_por_id,buscar_producto_por_nombre,buscar_nombre_por_sku,obtener_minimum_stock_level
-from llm_service import get_llm_service
-from rag_service import get_rag_service
+from typing import Optional, Dict, Any
+from sqlalchemy.orm import Session
+from pathlib import Path
 import pandas as pd
 import os
 import numpy as np
-from paths import resolve_file
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+import time
 
-from export_service import get_export_service
-from pathlib import Path
-
+# Modelos y servicios
+from model.modeloKeras import ModeloStockKeras, reentrenar_modelo_con_diferencias
+from model.registro_advanced import (
+    preparar_input_desde_dataset_procesado,
+    all_registers_priductos,
+    procesar_dataset_inventario,
+    buscar_producto_por_nombre,
+    buscar_nombre_por_sku,
+    obtener_minimum_stock_level
+)
 from model.database import SessionLocal
-from model.registro import Registro
-from dias_stock_service import DiasStockService
-from rag_service import get_rag_service, crear_router_integrado
-# from regex_handlers import procesar_mensaje_simple
 from model.funciones import ACTIONS_MAP
+from llm_service import get_llm_service
+from rag_service import get_rag_service, crear_router_integrado
+from dias_stock_service import DiasStockService
+from export_service import get_export_service
 app = FastAPI()
-dias_stock_service = DiasStockService()
+
+# Variables globales para servicios
+dias_stock_service = None
+rag_service = None
+router = None
+llm_service = None
+modelo = None
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite a todos
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# mis_funciones = [
-#     {"id": "saludo", "docstring": "hola buenos días saludo inicial bienvenida"},
-#     {"id": "despedida", "docstring": "adiós hasta luego cerrar chat terminar"},
-#     {"id": "enviar_correo", "docstring": "enviar mandar correo email redactar mensaje electronico"},
-#     {"id": "calculo_stock", "docstring": "calcular días stock restante inventario cuanto queda mercadería bodega"}
-# ]
+@app.on_event("startup")
+async def startup_event():
+    """
+    Inicializa todos los servicios pesados durante el startup
+    para evitar segfaults por carga durante requests
+    """
+    global dias_stock_service, rag_service, router, llm_service, modelo
+    
+    print("🚀 Iniciando carga de servicios...")
+    
+    # 1. Servicio de días de stock
+    try:
+        dias_stock_service = DiasStockService()
+        print("✅ DiasStockService cargado")
+    except Exception as e:
+        print(f"❌ Error cargando DiasStockService: {e}")
+    
+    # 2. Servicio RAG (FAISS + embeddings)
+    try:
+        rag_service = get_rag_service()
+        print("✅ RAG Service cargado")
+    except Exception as e:
+        print(f"❌ Error cargando RAG Service: {e}")
+        rag_service = None
+    
+    # 3. Router integrado
+    try:
+        if rag_service:
+            router = crear_router_integrado(rag_service)
+            print("✅ Router integrado cargado")
+    except Exception as e:
+        print(f"❌ Error cargando Router integrado: {e}")
+        router = None
+    
+    # 4. Servicio LLM
+    try:
+        llm_service = get_llm_service()
+        print("✅ LLM Service cargado")
+    except Exception as e:
+        print(f"⚠️  LLM Service no disponible: {e}")
+        llm_service = None
+    
+    # 5. Modelo Keras
+    try:
+        import gc
+        import tensorflow as tf
+        
+        tf.config.set_soft_device_placement(True)
+        gpus = tf.config.list_physical_devices('GPU')
+        if gpus:
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+        
+        print("📦 Cargando modelo Keras...")
+        modelo = ModeloStockKeras()
+        print("✅ Modelo Keras cargado")
+        gc.collect()
+    except Exception as e:
+        print(f"❌ Error cargando modelo Keras: {e}")
+        modelo = None
+    
+    print("🎉 Todos los servicios iniciados")
 
-# mis_faqs = [
-#     {"text": "horario atencion hora abren", "answer": "Atendemos de 9 a 18hs."},
-#     {"text": "precio costo valor", "answer": "Los precios dependen del catálogo actual."}
-# ]
-
-
-# router_engine = SemanticRouter(mis_funciones, mis_faqs)
-# Inicializar servicio LLM
-rag_service = get_rag_service()
-router = crear_router_integrado(rag_service)
-
-try:
-    llm_service = get_llm_service()
-except Exception as e:
-    print(f"Advertencia: No se pudo inicializar el servicio LLM: {e}")
-    llm_service = None
-
-# Inicializar servicio RAG
-try:
-    rag_service = get_rag_service()
-    print("Servicio RAG inicializado correctamente")
-except Exception as e:
-    print(f"Advertencia: No se pudo inicializar el servicio RAG: {e}")
-    rag_service = None
 class ChatInput(BaseModel):
     mensaje: str
-# Cargar modelo
-modelo = ModeloStockKeras()
 
 def get_db():
     db = SessionLocal()
