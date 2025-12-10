@@ -668,28 +668,26 @@ RECOMENDACIONES:
 def predecir_producto_especifico (data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     fecha = (data or {}).get('fecha', '2026-01-02')
     nombre = data.get('nombreProducto')
-    if nombre == None :
+    if nombre is None:
         return {
-            "message":f" Se necestia un nombre para predecir.",
+            "message": "Por favor proporciona el nombre del producto para poder realizar la predicción."
         }
+
     sku = buscar_producto_por_nombre(nombre)
-    
-    
-    
+
     features = preparar_input_desde_dataset_procesado(
-            sku=sku,
-            fecha_override=fecha
-        )
+        sku=sku,
+        fecha_override=fecha
+    )
     pred = modelo.predecir(features)
-        
+
     nombre_producto = buscar_nombre_por_sku(sku)
-    
-    # Obtener minimum_stock_level del producto
+
     minimum_stock = obtener_minimum_stock_level(sku) or 20.0
-    
+
     llm = get_llm_service()
     mensaje_llm = None
-    
+
     if llm:
         try:
             mensaje_llm = llm.generar_mensaje_prediccion(
@@ -701,14 +699,20 @@ def predecir_producto_especifico (data: Optional[Dict[str, Any]] = None) -> Dict
             )
         except Exception as llm_error:
             print(f"Error generando mensaje LLM: {llm_error}")
+
     return {
         "id_ingresado": sku,
         "nombre_producto": nombre_producto,
         "sku_detectado": sku,
         "fecha_prediccion": fecha,
         "prediction": float(pred),
-        "mensaje": mensaje_llm or f"Predicción para {nombre_producto}: {pred:.2f} unidades disponibles para {fecha}"
-        }
+        "mensaje": mensaje_llm or (
+            f"Predicción generada para **{nombre_producto}**:\n"
+            f"- Unidades estimadas para el {fecha}: **{pred:.2f}**.\n"
+            "Si necesitas más información o deseas predecir otro producto, ¡puedo ayudarte!"
+        )
+    }
+
     
 # Mapeo de acciones disponibles
 ACTIONS_MAP = {
