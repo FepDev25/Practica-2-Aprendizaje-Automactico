@@ -18,7 +18,9 @@ from model.registro_advanced import (
     procesar_dataset_inventario,
     buscar_producto_por_nombre,
     buscar_nombre_por_sku,
-    obtener_minimum_stock_level
+    obtener_minimum_stock_level,
+    buscar_producto_por_id,
+    obtener_nombres_productos
 )
 from model.database import SessionLocal
 from model.funciones import ACTIONS_MAP
@@ -39,19 +41,26 @@ def contiene_correo(texto):
     match = re.search(patron, texto)
     return match.group(0) if match else None
 
-
 def contiene_fecha(texto):
     patron = r"\b(\d{2}[/-]\d{2}[/-]\d{4}|\d{4}[/-]\d{2}[/-]\d{2})\b"
     match = re.search(patron, texto)
     return match.group(0) if match else None
 
-
 def contiene_codigo(texto):
+    print(texto)
     patron = r"\b[A-Za-z]{3}-\d{3}\b"
     match = re.search(patron, texto)
     return match.group(0) if match else None
 
-
+def contiene_nombre_producto(texto):
+    productos = obtener_nombres_productos()
+    if not productos:
+        return None
+    texto_lower = texto.lower()
+    for producto in productos:
+        if producto.lower() in texto_lower:
+            return producto
+    return None
 
 # Variables globales para servicios
 dias_stock_service = None
@@ -170,7 +179,6 @@ def get_dias_stock_service_lazy():
             print(f"❌ Error cargando DiasStockService: {e}")
     return dias_stock_service
 
-# EXPORTACIÓN A PDF
 
 @app.post("/exportar-pdf")
 def exportar_pdf_endpoint(
@@ -360,6 +368,8 @@ def chat_endpoint(request: ChatInput):
     codigo = contiene_codigo(request.mensaje)
     correo = contiene_correo(request.mensaje)
     fecha = contiene_fecha(request.mensaje)
+    nombreProducto = contiene_nombre_producto(request.mensaje)
+    print(codigo)
     # Caso 1: Conversaciones naturales (saludo/despedida) -> Usar RAG
     if decision["tipo"] == "conversacional":
         subtipo = decision["subtipo"]
@@ -384,7 +394,7 @@ def chat_endpoint(request: ChatInput):
         accion_id = decision["funcion"]
 
         if accion_id in ACTIONS_MAP:
-            resultado = ACTIONS_MAP[accion_id](data={"destinatario":correo,"codigo":codigo,"fecha":fecha})
+            resultado = ACTIONS_MAP[accion_id](data={"destinatario":correo,"codigo":codigo,"fecha":fecha,"nombreProducto":nombreProducto})
             return {
                 "tipo": "accion",
                 "accion": accion_id,

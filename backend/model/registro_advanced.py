@@ -49,6 +49,10 @@ def buscar_producto_por_nombre(nombre: str) -> str | dict:
     # Retorna solo el primer product_sku encontrado
     return coincidencias["product_sku"].iloc[0]
 
+def obtener_nombres_productos() -> list[str]:
+    nombres_unicos = DF_PRODUCTOS['product_name'].drop_duplicates().sort_values().tolist()
+    return nombres_unicos
+
 def preparar_input_desde_dataset_procesado(sku, fecha_override=None):
     scaler_X = load(str(resolve_file("scaler_X.joblib")))
     n_steps = 7

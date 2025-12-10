@@ -613,43 +613,63 @@ def crear_router_integrado(rag_service) -> UnifiedSemanticRouter:
         {
             "id": "predecir_all_stock",
             "docstring": (
-                "predecir inventario calcular stock futuro y dias restantes "
-                "analizar consumo estimar agotamiento productos"
+                "predecir todo inventario completo calcular stock futuro todos productos "
+                "analizar consumo general estimar agotamiento todos items "
+                "reporte completo inventario general análisis total"
             )
+        },
+        {
+            "id": "predecir_producto_especifico",
+            "docstring": (
+                "predecir un producto específico individual particular "
+                "calcular stock de un solo producto por nombre "
+                "cuánto stock tiene consultar inventario individual "
+                "predecir proteína creatina bcaa suplemento específico "
+                "dame stock del producto X analizar producto Y"
+            ),
+            "requiere": ["producto"],  
+            "opcional": ["fecha"]      
         },
         {
             "id": "enviar_correo",
             "docstring": (
                 "enviar mandar correo email notificación redactar mensaje electronico "
-                "avisar cliente o administrador"
-            )
+                "avisar notificar cliente administrador reporte por email "
+                "mandar enviar correo con reporte predicción"
+            ),
+            "opcional": ["destinatario"],
         },
         {
             "id": "productos_criticos",
             "docstring": (
-                "buscar productos con stock critico alerta agotamiento "
-                "listado de productos urgentes"
+                "buscar productos críticos alerta stock bajo agotamiento "
+                "listado productos urgentes escasos peligro "
+                "qué productos están críticos cuáles necesitan reposición "
+                "productos con poco stock inventario bajo"
             )
         },
         {
             "id": "saludo",
             "docstring": (
-                "saludar hola buenos dias buenas tardes en que puedo ayudarte "
-                "mensaje de bienvenida iniciar conversacion"
+                "saludar hola buenos dias buenas tardes buenas noches "
+                "qué tal cómo estás en qué puedo ayudarte ayuda "
+                "mensaje bienvenida iniciar conversación hey hola"
             )
         },
         {
             "id": "despedida",
             "docstring": (
-                "despedir adios hasta luego gracias por usar servicio "
-                "cerrar conversacion chao nos vemos"
+                "despedir adiós hasta luego nos vemos chao bye "
+                "gracias por usar servicio cerrar conversación "
+                "hasta pronto que tengas buen día"
             )
         },
         {
             "id": "exportar_pdf",
             "docstring": (
-                "exportar generar pdf reporte descargar documento archivo "
-                "crear exporta genera descarga guarda"
+                "exportar generar crear pdf reporte documento archivo "
+                "descargar guardar exporta genera pdf reporte "
+                "quiero pdf descarga reporte documento"
             )
         }
     ]
