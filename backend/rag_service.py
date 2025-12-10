@@ -613,19 +613,24 @@ def crear_router_integrado(rag_service) -> UnifiedSemanticRouter:
         {
             "id": "predecir_all_stock",
             "docstring": (
-                "predecir todo inventario completo calcular stock futuro todos productos "
-                "analizar consumo general estimar agotamiento todos items "
-                "reporte completo inventario general análisis total"
+                "predecir TODO el inventario COMPLETO GENERAL todos los productos "
+                "analizar consumo GENERAL de TODOS los items del inventario "
+                "reporte COMPLETO análisis TOTAL de TODO el inventario "
+                "predicción MASIVA de TODOS los productos sin excepción "
+                "NUNCA usar cuando se menciona un producto específico por nombre"
             )
         },
         {
             "id": "predecir_producto_especifico",
             "docstring": (
-                "predecir un producto específico individual particular "
-                "calcular stock de un solo producto por nombre "
-                "cuánto stock tiene consultar inventario individual "
-                "predecir proteína creatina bcaa suplemento específico "
-                "dame stock del producto X analizar producto Y"
+                "predecir UN producto ESPECÍFICO INDIVIDUAL por NOMBRE "
+                "calcular stock de UN SOLO producto en particular "
+                "cuánto stock tiene ESTE producto consultar inventario de UN ítem "
+                "generar predicción para Barra Proteica Chips Galletas Palomitas "
+                "predecir proteína creatina bcaa suplemento snack específico "
+                "dame predicción del producto X analizar producto Y por nombre "
+                "cuando se menciona CUALQUIER nombre de producto usar esta función "
+                "genérame la predicción para [nombre_producto] para el [fecha]"
             ),
             "requiere": ["producto"],  
             "opcional": ["fecha"]      
