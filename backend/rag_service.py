@@ -613,24 +613,23 @@ def crear_router_integrado(rag_service) -> UnifiedSemanticRouter:
         {
             "id": "predecir_all_stock",
             "docstring": (
-                "predecir TODO el inventario COMPLETO GENERAL todos los productos "
-                "analizar consumo GENERAL de TODOS los items del inventario "
-                "reporte COMPLETO análisis TOTAL de TODO el inventario "
-                "predicción MASIVA de TODOS los productos sin excepción "
-                "NUNCA usar cuando se menciona un producto específico por nombre"
+                "predecir TODOS los productos TODO el inventario COMPLETO "
+                "análisis GENERAL predicción MASIVA de TODOS los items "
+                "generar reporte COMPLETO del inventario TOTAL "
+                "predicción de TODOS TODOS TODOS los productos "
+                "todos los items análisis completo inventario general "
+                "predicción masiva completa general total todos"
             )
         },
         {
             "id": "predecir_producto_especifico",
             "docstring": (
-                "predecir UN producto ESPECÍFICO INDIVIDUAL por NOMBRE "
-                "calcular stock de UN SOLO producto en particular "
-                "cuánto stock tiene ESTE producto consultar inventario de UN ítem "
-                "generar predicción para Barra Proteica Chips Galletas Palomitas "
-                "predecir proteína creatina bcaa suplemento snack específico "
-                "dame predicción del producto X analizar producto Y por nombre "
-                "cuando se menciona CUALQUIER nombre de producto usar esta función "
-                "genérame la predicción para [nombre_producto] para el [fecha]"
+                "predecir UN SOLO producto ESPECÍFICO por nombre concreto "
+                "producto individual particular UNO un solo item "
+                "Barra Proteica Frutos Chips Verde Lima Galletas Chocolate "
+                "Palomitas Sal Vinagre nombre específico del producto "
+                "predicción individual de un producto con nombre "
+                "SOLO cuando hay nombre específico de UN producto"
             ),
             "requiere": ["producto"],  
             "opcional": ["fecha"]      
