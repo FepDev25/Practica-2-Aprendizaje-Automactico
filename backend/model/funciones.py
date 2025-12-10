@@ -673,7 +673,27 @@ RECOMENDACIONES:
 
 
 def predecir_producto_especifico (data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    fecha = (data or {}).get('fecha', '2026-01-02')
+    """
+    Predice el stock de un producto específico
+    """
+    # Obtener y parsear fecha
+    fecha_raw = (data or {}).get('fecha')
+    if fecha_raw:
+        # Convertir DD-MM-YYYY o DD/MM/YYYY a YYYY-MM-DD
+        try:
+            from datetime import datetime
+            if '/' in fecha_raw:
+                fecha_obj = datetime.strptime(fecha_raw, '%d/%m/%Y')
+            elif '-' in fecha_raw and len(fecha_raw.split('-')[0]) == 2:
+                fecha_obj = datetime.strptime(fecha_raw, '%d-%m-%Y')
+            else:
+                fecha_obj = datetime.strptime(fecha_raw, '%Y-%m-%d')
+            fecha = fecha_obj.strftime('%Y-%m-%d')
+        except:
+            fecha = '2026-01-02'
+    else:
+        fecha = '2026-01-02'
+    
     nombre = data.get('nombreProducto')
     if nombre is None:
         return {
@@ -681,15 +701,24 @@ def predecir_producto_especifico (data: Optional[Dict[str, Any]] = None) -> Dict
         }
 
     sku = buscar_producto_por_nombre(nombre)
+    if sku is None:
+        return {
+            "message": f"No se encontró el producto '{nombre}' en el inventario."
+        }
 
     features = preparar_input_desde_dataset_procesado(
         sku=sku,
         fecha_override=fecha
     )
+    
+    if features is None or not np.any(features):
+        return {
+            "message": f"No hay datos suficientes para predecir el producto '{nombre}'."
+        }
+    
     pred = modelo.predecir(features)
 
     nombre_producto = buscar_nombre_por_sku(sku)
-
     minimum_stock = obtener_minimum_stock_level(sku) or 20.0
 
     llm = get_llm_service()
@@ -707,17 +736,23 @@ def predecir_producto_especifico (data: Optional[Dict[str, Any]] = None) -> Dict
         except Exception as llm_error:
             print(f"Error generando mensaje LLM: {llm_error}")
 
+    # Retornar con 'message' en lugar de 'mensaje' para compatibilidad con frontend
     return {
-        "id_ingresado": sku,
-        "nombre_producto": nombre_producto,
-        "sku_detectado": sku,
-        "fecha_prediccion": fecha,
-        "prediction": float(pred),
-        "mensaje": mensaje_llm or (
-            f"Predicción generada para **{nombre_producto}**:\n"
-            f"- Unidades estimadas para el {fecha}: **{pred:.2f}**.\n"
-            "Si necesitas más información o deseas predecir otro producto, ¡puedo ayudarte!"
-        )
+        "message": mensaje_llm or (
+            f"📦 **Predicción para {nombre_producto}**\n\n"
+            f"🗓️ Fecha: {fecha}\n"
+            f"📊 Stock estimado: **{pred:.0f} unidades**\n"
+            f"⚠️ Stock mínimo: {minimum_stock:.0f} unidades\n\n"
+            + ("✅ Stock adecuado" if pred >= minimum_stock else "🔴 **STOCK CRÍTICO** - Requiere reabastecimiento")
+        ),
+        "data": {
+            "sku": sku,
+            "nombre_producto": nombre_producto,
+            "fecha_prediccion": fecha,
+            "prediction": float(pred),
+            "minimum_stock": minimum_stock,
+            "estado": "adecuado" if pred >= minimum_stock else "critico"
+        }
     }
 
     
