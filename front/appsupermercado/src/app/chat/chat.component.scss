@@ -362,7 +362,7 @@ $shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 
   .message-text {
     p {
-      margin: 0 0 8px 0;
+      margin: 0 0 2px 0;
       font-size: 0.9rem;
       line-height: 1.6;
 
@@ -692,7 +692,6 @@ $shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   }
 }
 
-
 .message-text h1,
 .message-text h2,
 .message-text h3 {
@@ -710,4 +709,57 @@ $shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 
 .message-text strong {
   color: #333;
+}
+
+
+// Agregar estos estilos a tu chat.component.scss existente
+
+// Agregar estos estilos a tu chat.component.scss existente
+
+.download-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+
+  svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.5;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Variante para mensajes del bot (fondo más oscuro)
+.bot-message .download-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+
+  &:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+  }
 }
