@@ -1,2 +1,2 @@
 MAE,RMSE,MAPE (%),Modelo,Datos,N_muestras
-49.997218847342495,100.27661790293581,inf,../notebooks/models/grid_search_model_85.keras,../data/dataset_reentrenamiento_advanced.csv,7042
+51.92173586609543,76.7349547887204,15.5201777540719,../notebooks/models/grid_search_model_6.keras,../data/dataset_reentrenamiento_advanced.csv,93
