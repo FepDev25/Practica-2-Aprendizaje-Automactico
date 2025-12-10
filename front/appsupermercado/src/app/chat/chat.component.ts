@@ -123,8 +123,8 @@ export class ChatComponent implements OnInit, AfterViewChecked {
       return url;
     }
 
-    const baseUrl = 'http://34.10.46.216';
-
+    // Usar la misma URL base del ChatService
+    const baseUrl = this.chatservice.url;
     const cleanUrl = url.startsWith('/') ? url : `/${url}`;
 
     return `${baseUrl}${cleanUrl}`;
