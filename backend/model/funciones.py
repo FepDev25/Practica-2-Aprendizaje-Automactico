@@ -461,8 +461,8 @@ def exportar_pdf(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         mensaje_original = data.get('mensaje', '') if data else ''
         email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', mensaje_original)
         
-        # Parámetros
-        fecha = data.get('fecha') if data else datetime.now().strftime('%Y-%m-%d')
+        # Parámetros - asegurar que fecha nunca sea None
+        fecha = (data.get('fecha') if data else None) or datetime.now().strftime('%Y-%m-%d')
         
         # Si encontró email en el mensaje, activar envío automático
         enviar_email = bool(email_match) or (data.get('enviar_email', False) if data else False)
