@@ -120,7 +120,7 @@ def predecir_all_stock(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         if not resultados:
             return APIResponse.warning(
                 message="No se encontraron productos con datos suficientes para realizar predicciones.",
-                title="⚠️ Sin datos de predicción",
+                title="Sin datos de predicción",
                 data={
                     "fecha_prediccion": fecha,
                     "total_productos": 0,
@@ -195,7 +195,7 @@ def predecir_all_stock(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         return APIResponse.error(
             message="No se pudo completar el análisis de predicción de inventario.",
             error_detail=str(e),
-            title="❌ Error en predicción"
+            title="Error en predicción"
         )
 
 def productos_criticos(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -229,7 +229,7 @@ def productos_criticos(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             if not registros:
                 return APIResponse.warning(
                     message="No hay registros en la base de datos para analizar el estado del inventario.",
-                    title="⚠️ Sin datos disponibles"
+                    title="Sin datos disponibles"
                 )
 
             # Construir lote de productos
@@ -294,7 +294,7 @@ def productos_criticos(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             elif productos_alerta_count > 0:
                 return APIResponse.warning(
                     message=mensaje_resumen,
-                    title="⚠️ Atención: Productos requieren reabastecimiento",
+                    title="Atención: Productos requieren reabastecimiento",
                     data=response_data
                 )
             else:
@@ -314,7 +314,7 @@ def productos_criticos(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         return APIResponse.error(
             message="No se pudo completar el análisis de productos críticos.",
             error_detail=str(e),
-            title="❌ Error al analizar productos"
+            title="Error al analizar productos"
         )
 
 def enviar_correo(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -505,7 +505,7 @@ def exportar_pdf(data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         if not predicciones:
             return APIResponse.error(
                 message="No hay productos con datos suficientes para generar el PDF.",
-                title="❌ Sin datos"
+                title="Sin datos"
             )
         
         print(f"✅ {len(predicciones)} productos procesados")
@@ -535,7 +535,7 @@ RECOMENDACIONES:
             """
             
         except Exception as e:
-            print(f"⚠️ Error al generar mensaje LLM: {e}")
+            print(f"Error al generar mensaje LLM: {e}")
             mensaje_llm = f"Análisis de {len(predicciones)} productos para la fecha {fecha}"
         
         # Generar PDF EN MEMORIA
@@ -553,15 +553,22 @@ RECOMENDACIONES:
                 tipo_reporte="stock_predictions"
             )
             
-            # ✅ GUARDAR PDF EN DISCO TAMBIÉN (para endpoint /descargar-pdf)
             pdf_path = export_service.reportes_dir / nombre_archivo
+            
+            # Asegurar que el directorio existe
+            export_service.reportes_dir.mkdir(exist_ok=True)
+            
+            # Verificar que pdf_bytes es bytes válido
+            if not isinstance(pdf_bytes, bytes) or len(pdf_bytes) < 100:
+                raise ValueError(f"PDF inválido: {type(pdf_bytes)}, tamaño: {len(pdf_bytes) if isinstance(pdf_bytes, bytes) else 'N/A'}")
+            
             with open(pdf_path, 'wb') as f:
                 f.write(pdf_bytes)
-            print(f"✅ PDF guardado en: {pdf_path}")
+            print(f"✅ PDF guardado en: {pdf_path} ({len(pdf_bytes)} bytes)")
             
         except AttributeError as e:
             # Fallback al método antiguo si generar_pdf_en_memoria no existe
-            print(f"⚠️ Usando método antiguo (generar_pdf_reporte): {e}")
+            print(f"Usando método antiguo (generar_pdf_reporte): {e}")
             pdf_path = export_service.generar_pdf_reporte(
                 fecha=fecha,
                 predicciones=predicciones,
@@ -593,9 +600,9 @@ RECOMENDACIONES:
                         if resultado_email.get('exito', False):
                             print(f"✅ Email enviado exitosamente a {destinatario}")
                         else:
-                            print(f"❌ Email NO enviado: {resultado_email.get('error', 'Error desconocido')}")
+                            print(f"Email NO enviado: {resultado_email.get('error', 'Error desconocido')}")
                     except Exception as e:
-                        print(f"❌ Error al enviar email: {e}")
+                        print(f"Error al enviar email: {e}")
                         import traceback
                         traceback.print_exc()
                 
@@ -606,7 +613,7 @@ RECOMENDACIONES:
                 print(f"✅ Email programado para envío a {destinatario}")
                 
             except Exception as e:
-                print(f"❌ Error al programar email: {e}")
+                print(f"Error al programar email: {e}")
                 import traceback
                 traceback.print_exc()
         
@@ -625,12 +632,12 @@ RECOMENDACIONES:
             url_descarga = f"/descargar-pdf/{nombre_archivo}"
             if destinatario and not email_enviado:
                 mensaje = (
-                    f"⚠️ PDF generado con {len(predicciones)} productos "
+                    f"PDF generado con {len(predicciones)} productos "
                     f"({criticos_count} críticos, {alertas_count} alertas), "
                     f"pero no se pudo enviar a {destinatario}. "
                     f"Descárgalo aquí: {url_descarga}"
                 )
-                title = "⚠️ PDF generado (error al enviar email)"
+                title = "PDF generado (error al enviar email)"
             else:
                 mensaje = (
                     f"✅ PDF generado con {len(predicciones)} productos "
@@ -655,13 +662,13 @@ RECOMENDACIONES:
         )
         
     except Exception as e:
-        print(f"❌ Error en exportar_pdf: {e}")
+        print(f"Error en exportar_pdf: {e}")
         import traceback
         traceback.print_exc()
         return APIResponse.error(
             message="No se pudo completar la exportación a PDF.",
             error_detail=str(e),
-            title="❌ Error en exportación"
+            title="Error en exportación"
         )
 
 
